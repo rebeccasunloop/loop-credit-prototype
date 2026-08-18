@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credit — Loop build spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+  /* ---------------------------------------------------------------
+     Tokens — from loop-design-system. Semantic aliases only below.
+     --------------------------------------------------------------- */
+  :root {
+    --brand-25:#eafaf2; --brand-50:#d9f5e6; --brand-100:#bbe5d0; --brand-500:#045b3f;
+    --brand-600:#004932; --brand-700:#003926; --brand-900:#001d11;
+    --neutral-50:#fafafa; --neutral-100:#f5f5f5; --neutral-200:#e5e5e5;
+    --neutral-300:#d4d4d4; --neutral-500:#737373; --neutral-600:#525252;
+    --neutral-700:#404040; --neutral-900:#171717;
+    --accent-light-green:#f2fce4;
+
+    --bg-primary:#fff; --bg-secondary:var(--neutral-50); --bg-tertiary:var(--neutral-100);
+    --bg-brand-primary:var(--brand-500); --bg-brand-secondary:var(--accent-light-green);
+    --border-primary:var(--neutral-300); --border-secondary:var(--neutral-200);
+    --border-tertiary:var(--neutral-100); --border-brand:var(--brand-500);
+    --text-primary:var(--neutral-900); --text-secondary:var(--neutral-700);
+    --text-tertiary:var(--neutral-600); --text-quaternary:var(--neutral-500);
+    --text-on-brand:#fff; --text-brand-secondary:var(--brand-700);
+
+    --semantic-error:#f12d1b;   --semantic-error-bg:#fef1ed;
+    --semantic-success:#30ac2e; --semantic-success-bg:#f2fce4;
+    --semantic-warning:#dc6803; --semantic-warning-bg:#fffaeb;
+    --semantic-info:#1570ef;    --semantic-info-bg:#e8f3fa;
+
+    /* legacy --radius-DEFAULT 20px; Evergreen halves this to 12px */
+    --rounded-md:18px; --rounded-lg:20px; --rounded-xl:24px; --rounded-pill:9999px;
+
+    --shadow-xs:0 1px 2px rgba(0,0,0,.05);
+    --shadow-lg:0 12px 16px -4px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.03), 0 2px 2px -1px rgba(0,0,0,.04);
+
+    --sp-xs:8px; --sp-sm:12px; --sp-base:16px; --sp-md:20px; --sp-lg:24px;
+    --sp-xl:32px; --sp-xxl:48px; --sp-section:64px;
+
+    --font-sans:'DM Sans',-apple-system,system-ui,'Segoe UI',Roboto,Arial,sans-serif;
+    --font-mono:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:var(--font-sans); font-size:16px; line-height:24px;
+    color:var(--text-primary); background:var(--bg-secondary);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:940px;margin:0 auto;padding:var(--sp-xxl) var(--sp-lg) var(--sp-section)}
+
+  /* ---------------- Masthead ---------------- */
+  .masthead{margin-bottom:var(--sp-xl)}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:var(--sp-xs);
+    font-size:12px;font-weight:500;line-height:18px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-brand-secondary);
+    background:var(--bg-brand-secondary);border-radius:var(--rounded-pill);
+    padding:4px 12px;margin-bottom:var(--sp-base);
+  }
+  h1{font-size:36px;font-weight:600;line-height:44px;letter-spacing:-.72px}
+  .masthead .meta{
+    margin-top:var(--sp-sm);font-size:14px;line-height:20px;color:var(--text-quaternary);
+    display:flex;flex-wrap:wrap;gap:4px var(--sp-base);
+  }
+  .masthead .meta b{font-weight:500;color:var(--text-tertiary)}
+
+  /* ---------------- Verdict ---------------- */
+  .verdict{
+    border-radius:var(--rounded-xl);padding:var(--sp-lg) var(--sp-lg) var(--sp-md);
+    margin-bottom:var(--sp-xl);border-left:6px solid var(--semantic-info);
+    background:var(--semantic-info-bg);
+  }
+  .verdict.is-build{border-left-color:var(--semantic-success);background:var(--semantic-success-bg)}
+  .verdict.is-caveat{border-left-color:var(--semantic-warning);background:var(--semantic-warning-bg)}
+  .verdict.is-nobuild{border-left-color:var(--semantic-error);background:var(--semantic-error-bg)}
+  .verdict-label{
+    font-size:12px;font-weight:600;line-height:18px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--text-secondary);
+  }
+  .verdict-call{font-size:24px;font-weight:600;line-height:32px;margin:6px 0 var(--sp-sm)}
+  .verdict p{font-size:16px;line-height:24px;color:var(--text-secondary)}
+  .verdict p + p{margin-top:var(--sp-sm)}
+  .verdict dl{
+    display:grid;grid-template-columns:150px 1fr;gap:var(--sp-xs) var(--sp-base);
+    margin-top:var(--sp-base);font-size:14px;line-height:20px;
+  }
+  .verdict dt{font-weight:500;color:var(--text-tertiary)}
+  .verdict dd{color:var(--text-secondary)}
+
+  /* ---------------- Sections ---------------- */
+  section{
+    background:var(--bg-primary);border:1px solid var(--border-secondary);
+    border-radius:var(--rounded-xl);box-shadow:var(--shadow-lg);
+    padding:var(--sp-lg) var(--sp-xl) var(--sp-xl);margin-bottom:var(--sp-md);
+  }
+  .sec-num{
+    font-family:var(--font-mono);font-size:14px;font-weight:500;
+    color:var(--text-quaternary);
+  }
+  h2{font-size:24px;font-weight:600;line-height:32px;margin:2px 0 var(--sp-base)}
+  h3{
+    font-size:16px;font-weight:600;line-height:24px;
+    margin:var(--sp-lg) 0 var(--sp-xs);
+  }
+  h3:first-of-type{margin-top:var(--sp-base)}
+  h4{
+    font-size:12px;font-weight:600;line-height:18px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--text-quaternary);
+    margin:var(--sp-base) 0 6px;
+  }
+  p,li{font-size:15px;line-height:23px;color:var(--text-secondary)}
+  p + p{margin-top:var(--sp-sm)}
+  ul,ol{margin:var(--sp-xs) 0 0 var(--sp-md)}
+  li{margin-bottom:6px}
+  li::marker{color:var(--brand-500)}
+  strong{font-weight:600;color:var(--text-primary)}
+
+  /* ---------------- Tables ---------------- */
+  .t-wrap{overflow-x:auto;margin-top:var(--sp-sm)}
+  table{border-collapse:collapse;width:100%;font-size:14px;line-height:20px}
+  th,td{
+    text-align:left;padding:10px 14px;
+    border-bottom:1px solid var(--border-tertiary);vertical-align:top;
+  }
+  th{
+    font-weight:600;color:var(--text-tertiary);white-space:nowrap;
+    border-bottom:1px solid var(--border-secondary);
+  }
+  td{color:var(--text-secondary)}
+  tr:last-child td{border-bottom:none}
+
+  /* ---------------- Code / paths ---------------- */
+  code,.path{
+    font-family:var(--font-mono);font-size:13px;
+    background:var(--bg-tertiary);border-radius:6px;padding:2px 6px;
+    color:var(--text-primary);white-space:nowrap;
+  }
+  td code,td .path{white-space:normal}
+  .num{font-family:var(--font-mono);font-weight:500}
+
+  /* ---------------- Flags ---------------- */
+  .flag{
+    display:block;border-radius:var(--rounded-md);padding:10px 14px;
+    margin-top:var(--sp-sm);font-size:14px;line-height:21px;color:var(--text-primary);
+    border-left:3px solid var(--semantic-warning);background:var(--semantic-warning-bg);
+  }
+  .flag b{font-weight:600;letter-spacing:.02em}
+  .flag.is-gap{border-left-color:var(--semantic-error);background:var(--semantic-error-bg)}
+  .flag.is-assumption{border-left-color:var(--semantic-info);background:var(--semantic-info-bg)}
+
+  .pill{
+    display:inline-block;font-size:12px;font-weight:500;line-height:18px;
+    border-radius:var(--rounded-pill);padding:2px 10px;
+    border:1px solid var(--border-primary);color:var(--text-tertiary);
+    background:var(--bg-primary);
+  }
+  .pill.is-brand{
+    border-color:transparent;background:var(--bg-brand-secondary);
+    color:var(--text-brand-secondary);
+  }
+
+  /* ---------------- Handoff (§11) ---------------- */
+  .handoff{background:var(--brand-900);border-color:var(--brand-900);color:#fff}
+  .handoff h2,.handoff h3,.handoff strong{color:#fff}
+  .handoff .sec-num{color:rgba(255,255,255,.55)}
+  .handoff p,.handoff li,.handoff td{color:rgba(255,255,255,.86)}
+  .handoff th{color:rgba(255,255,255,.6);border-bottom-color:rgba(255,255,255,.18)}
+  .handoff td{border-bottom-color:rgba(255,255,255,.1)}
+  .handoff code,.handoff .path{background:rgba(255,255,255,.12);color:#fff}
+  .handoff li::marker{color:var(--brand-100)}
+
+  footer{
+    margin-top:var(--sp-xl);font-size:13px;line-height:20px;color:var(--text-quaternary);
+  }
+  footer a{color:var(--brand-500)}
+
+  @media (max-width:680px){
+    .page{padding:var(--sp-lg) var(--sp-base) var(--sp-xl)}
+    section{padding:var(--sp-base) var(--sp-md) var(--sp-lg)}
+    h1{font-size:30px;line-height:38px;letter-spacing:0}
+    .verdict dl{grid-template-columns:1fr;gap:2px}
+    .verdict dt{margin-top:var(--sp-xs)}
+  }
+  @media print{
+    body{background:#fff}
+    .page{max-width:none;padding:0}
+    section{box-shadow:none;border-color:var(--border-secondary);break-inside:avoid}
+    .handoff{background:#fff;color:var(--text-primary);border-color:var(--border-primary)}
+    .handoff h2,.handoff h3,.handoff strong{color:var(--text-primary)}
+    .handoff p,.handoff li,.handoff td{color:var(--text-secondary)}
+    .handoff code,.handoff .path{background:var(--bg-tertiary);color:var(--text-primary)}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <span class="eyebrow">Loop build spec</span>
+  <h1>Credit — a dashboard tab for the line of credit</h1>
+  <div class="meta">
+    <span><b>Date</b> 2026-08-10</span>
+    <span><b>Requested by</b> Rebecca Sun</span>
+    <span><b>Environment</b> next-app (<span class="path">~/Downloads/next-app-main</span>)</span>
+    <span><b>Status</b> Awaiting review — not built</span>
+  </div>
+</header>
+
+<div class="verdict is-caveat">
+  <div class="verdict-label">§1 · Segment-fit verdict</div>
+  <div class="verdict-call">BUILD WITH CAVEAT — the credit limit is the strongest card-spend driver Loop has, but the application's decline path has no Self Serve exit.</div>
+  <p><strong>Box 1 — can the product support the need?</strong> Yes, and most of it already
+  exists in code. <code>LineOfCredit</code>, <code>Fund</code>, <code>CreditApplication</code> and
+  <code>CreditAssessment</code> are real GraphQL types; <code>/credit/apply</code> is a live route;
+  card limits, statements, autopay and a repayment wizard ship today under <code>/cards</code>.
+  What does not exist is a <em>place</em>. Borrowing is currently scattered across three screens
+  that do not reference each other.</p>
+  <p><strong>Box 2 — can Loop monetize it?</strong> Yes, and through the mechanism
+  <code>LOOP-ICP.md</code> §3 says actually counts. A credit limit raises card spend directly, and
+  Loop's ICP spends that limit across a border — ad platforms, 3PLs, overseas suppliers — so the
+  same feature raises card spend <em>and</em> FX volume, the two validation metrics in §2. This is
+  not a convenience feature claiming revenue impact; the mechanism is spend.</p>
+  <p><strong>The caveat, in two parts.</strong> First, <code>LOOP-ICP.md</code> §7.3: Self Serve is
+  unattended by design, but a credit application ends in underwriting, and
+  <code>CreditApplicationStatusEnum</code> includes <code>DEAD</code> ("Credit application was
+  rejected") with no product-side next step. A Self Serve customer who is declined currently has
+  nowhere to go — see §6, which is where that has to be designed or explicitly accepted. Second,
+  Capital requires a personal guarantee for companies under $10M in gross profit
+  (<code>LOOP-ICP.md</code> §6), which puts a step in the flow that only the guarantor can
+  complete — it cannot be delegated to a controller or bookkeeper (§4).</p>
+  <dl>
+    <dt>Segment</dt><dd>Both, weighted to Key Accounts</dd>
+    <dt>Thresholds cleared</dt><dd>Key Accounts — <code>$500k/year+ in card spend OR $5M/year+ in FX</code>, signalled by <code>Revenue &gt;$2M OR employees &gt;20 OR VC funding &gt;$1M</code>. Self Serve — <code>$50k/year in card spend OR $60k/year in FX</code>, signalled by <code>Revenue &gt;$100k/year</code>.</dd>
+    <dt>Excludes</dt><dd>Pre-revenue businesses (~17 declines, Jan–Jun 2026), Quebec sole proprietorships (~29), no director resident in Canada (~18), money services businesses (~10), restricted industries (~33) — all already gated at onboarding, so this tab inherits the gate rather than re-implementing it. Additionally excludes anyone unwilling to give a personal guarantee under $10M gross profit.</dd>
+    <dt>Revenue mechanism</dt><dd>Card spend <em>and</em> FX volume — both <code>LOOP-ICP.md</code> §2 validation metrics</dd>
+  </dl>
+</div>
+
+<section>
+  <span class="sec-num">§2</span>
+  <h2>What the feature does</h2>
+  <p>A Loop customer who borrows on their card today has to already know that "credit" is
+  filed under three unrelated things: an <em>Apply for Credit</em> card that appears on Home
+  and then disappears once used, their balance under <em>Cards → Balances</em>, and the payment
+  wizard under <em>Cards → Pay</em>. Nothing in the sidebar says the word "credit," so the answer
+  to "how much can I still spend, and when is it due" depends on remembering where to look.
+  This feature gives borrowing one home in the sidebar: what the limit is, what has been drawn
+  against it, what is due and when, and one way to pay it down — with the application flow
+  sitting in the same place for customers who do not have a limit yet.</p>
+  <h3>Primary user goal</h3>
+  <p>See what I can borrow, what I owe, and pay it down — without leaving one screen.</p>
+
+  <h3>Mercury's Financing tab, checked against Loop's ICP</h3>
+  <p>The reference screenshot is Mercury's Financing page. Mercury sells to VC-backed US
+  startups; Loop sells to Canadian businesses that move money across a border
+  (<code>LOOP-ICP.md</code> §4). Three of Mercury's four tabs do not survive that translation.</p>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Mercury element</th><th>Verdict for Loop</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Working Capital tab</td><td><strong>Keep</strong> — becomes the whole page</td><td>Maps 1:1 to <code>LineOfCredit</code> / <code>Fund</code>. Loop's own equivalent is "Capital for Cards": a revolving limit distributed across cards. Fits every ICP industry in §4 — ecommerce funds ad spend, manufacturers fund supplier runs, agencies fund contractor payments.</td></tr>
+      <tr><td>Venture Debt tab</td><td><strong>Drop</strong></td><td>No Loop analogue, no GraphQL type, and the ICP thread is cross-border money movement, not venture financing. "Startups" is one of eight audience pages and <code>&gt;$1M VC funding</code> appears in §2 only as a <em>targeting signal</em> for Key Accounts — not as a product need. Building it would add screens without adding card spend or FX volume (<code>LOOP-ICP.md</code> §3).</td></tr>
+      <tr><td>SAFEs tab</td><td><strong>Drop</strong> — contradicts positioning</td><td>bankonloop.com/capital sells Capital as equity-free: "Grow your business without giving up equity or a percentage of your sales." A SAFEs tab argues the opposite inside the product.</td></tr>
+      <tr><td>Financing → Home tab (offers hub)</td><td><strong>Keep, but not as a tab</strong></td><td>Loop has one credit product in the schema, so an offers hub is an empty container. It becomes the no-limit state of the Overview tab instead (§6, <em>No line of credit</em>).</td></tr>
+      <tr><td>Outstanding balance + repayment progress bar</td><td><strong>Keep</strong></td><td><code>Fund.outstandingBalance</code>, <code>Fund.creditLimit</code>, <code>Fund.availableCredit</code>. Loop already renders this shape in <code>credit-card-balance.tsx</code> with <code>ProgressBar</code>.</td></tr>
+      <tr><td>Upcoming payments schedule</td><td><strong>Keep</strong></td><td><code>Fund.paymentSchedule</code> (<code>amountDue</code>, <code>dueDate</code>) and <code>Fund.nextPayment</code> / <code>previousPayment</code> exist.</td></tr>
+      <tr><td>Edit autopay</td><td><strong>Keep</strong> — already built</td><td><code>/cards/autopay</code> + <code>GET_CARD_RECURRING_PAYMENT</code>.</td></tr>
+      <tr><td>Activity table</td><td><strong>Keep</strong></td><td><code>Transaction.lineOfCreditDescription</code> and <code>Transaction.lineOfCreditTransactionType</code> are documented in the schema as "for LOC transactions tab" — this table was already anticipated.</td></tr>
+      <tr><td>Download loan agreement</td><td><strong>Flag</strong></td><td>See <code>⚠️ GAP</code> in §5. No loan-document entity found in the schema.</td></tr>
+      <tr><td>Multi-currency</td><td><strong>Add</strong> — Mercury has no equivalent</td><td>Loop balances are per-currency across <code>LOOP_BASE_CURRENCIES</code>. Mercury's single-USD layout does not carry over; every figure here is currency-scoped.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="flag is-assumption"><b>⚠️ ASSUMPTION:</b> Scope confirmed with the requester as
+  <strong>card line of credit only</strong>. "Capital for Invoices" — invoice and PO financing at
+  1.2% / 1.5% monthly on bankonloop.com/capital — is a real, sold product with real ICP fit for
+  manufacturers and retail brands, but it has no GraphQL model in <code>next-app</code>, so it is
+  out of scope here (§10) rather than invented.</p>
+</section>
+
+<section>
+  <span class="sec-num">§3</span>
+  <h2>Where it lives in the product</h2>
+  <div class="t-wrap"><table>
+    <tr><th>Parent screen</th><td>New page group, following the Cards pattern · <span class="path">src/components/pages/cards/components/cards-layout.tsx</span></td></tr>
+    <tr><th>Route</th><td><span class="path">src/pages/credit/index.tsx</span> (new) · <span class="path">src/pages/credit/apply.tsx</span> (exists) · <span class="path">src/pages/credit/activity.tsx</span> (new)</td></tr>
+    <tr><th>Storybook</th><td>No <code>pages-credit-*</code> story exists yet. Nearest live stories: <code>pages-cards-balances</code> shape via <span class="path">src/components/pages/cards/balances.tsx</span>, and <span class="path">src/components/pages/credit/credit-application-form.stories.tsx</span></td></tr>
+    <tr><th>Entry point</th><td>New sidebar nav item, <strong>Credit</strong>, added to <span class="path">src/components/layout/sidebar/components/default-items.tsx</span></td></tr>
+    <tr><th>Surface</th><td>New surface that consolidates three existing ones</td></tr>
+    <tr><th>Reference pattern</th><td>Tabs shell — <span class="path">src/components/pages/cards/components/cards-layout.tsx</span>. Repayment wizard — <span class="path">src/components/pages/cards/pay/components/wizard-shell.tsx</span>. Not <code>add-funds</code>: this page is a dashboard with a wizard hanging off it, not a linear flow.</td></tr>
+  </table></div>
+  <p>What was read to establish this: the sidebar item list in <code>default-items.tsx</code>
+  (14 items, no credit entry); <code>ability-provider.tsx</code> lines 92–98; the credit route and
+  form under <code>src/pages/credit/</code> and <code>src/components/pages/credit/</code>; the card
+  balance and repayment surfaces under <code>src/components/pages/cards/</code>; and the
+  <code>LineOfCredit</code> / <code>Fund</code> / <code>CreditApplication</code> types in
+  <code>src/gql/__generated__/graphql.ts</code>.</p>
+
+  <h3>The permission subject already exists</h3>
+  <p>No new permission needs inventing. <span class="path">src/provider/ability-provider.tsx</span>
+  already grants a <code>capital</code> subject:</p>
+  <div class="t-wrap"><table>
+    <tr><th>Existing code</th><td><code>if (hasLineOfCredit &amp;&amp; companyWidePermissions.manageLinesOfCredit) { rawPermissions['capital'] = { view: ['all'] } }</code></td></tr>
+    <tr><th>Nav item</th><td><code>&lt;ProtectedNavItem action="view" resources={['capital']} subject="all" href="/credit" activePathnamePrefix="/credit" icon={CoinsHand} label={t('components.sidebar.credit')} /&gt;</code></td></tr>
+    <tr><th>Icon</th><td><code>CoinsHand</code> from <code>@untitledui/icons</code> — verified present in the installed package. Unused elsewhere in the sidebar.</td></tr>
+    <tr><th>Position</th><td>Directly after <strong>Cards</strong> and before <strong>Send Payments</strong> — credit is what funds the cards.</td></tr>
+  </table></div>
+  <p>The <code>capital</code> subject is granted only when the account <em>has</em> a line of
+  credit, which means an applicant would never see the nav item. That is the wrong gate for a page
+  whose job includes applying — see the open question below.</p>
+
+  <h3>Relationship to the existing Cards surfaces</h3>
+  <p>Three screens live today that this page overlaps: <code>/cards/balances</code>,
+  <code>/cards/pay</code>, <code>/cards/autopay</code>, plus the <code>CreditCardBalance</code> and
+  <code>ApplyForCredit</code> blocks on Home (<span class="path">src/pages/index.tsx</span> lines
+  30 and 73).</p>
+  <p class="flag"><b>⚠️ NEEDS: placement decision</b> — do <code>/cards/balances</code> and
+  <code>/cards/pay</code> <strong>move</strong> under <code>/credit</code>, or does
+  <code>/credit</code> link out to them? This spec builds the <em>move</em>: Credit owns balance,
+  schedule and repayment, and the Cards tab bar drops its Balances and Pay tabs. The alternative —
+  duplicate entry points into the same wizard from two nav items — is the outcome that makes the
+  page not worth adding. Likely owner: PM + the Cards squad, because it changes a shipped route.</p>
+</section>
+
+<section>
+  <span class="sec-num">§4</span>
+  <h2>Who reaches it</h2>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Role</th><th>Segment</th><th>How they get here</th><th>Allowed to</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Founder / CEO</strong> (<code>account_owner</code>)</td><td>Self Serve, mostly</td><td>Sidebar → Credit. Also the Home <code>ApplyForCredit</code> block while <code>creditApplication.status === NOT_STARTED</code>.</td><td>Everything: apply, sign the personal guarantee, view, pay, configure autopay. Is the finance function — <code>LOOP-ICP.md</code> §5.</td></tr>
+      <tr><td><strong>CFO / finance lead</strong> (<code>admin</code>)</td><td>Key Accounts</td><td>Sidebar → Credit</td><td>Apply (<code>useHomeState</code> gates <code>showApplyForCredit</code> to <code>account_owner</code> or <code>admin</code>), view, pay, configure autopay. <strong>Cannot</strong> sign the personal guarantee unless they are personally the guarantor.</td></tr>
+      <tr><td><strong>Controller / bookkeeper</strong> (<code>bookkeeper</code>)</td><td>Both, more in Key Accounts</td><td>Sidebar → Credit, if granted</td><td>View balance, statements and activity; download statements. <strong>No</strong> apply, <strong>no</strong> pay — <code>pay_card_balance</code> is not theirs.</td></tr>
+      <tr><td><strong>AP / operations</strong> (<code>member</code>)</td><td>Key Accounts</td><td>Nav item hidden</td><td>Nothing. Sees available spend on their own card, not the account limit.</td></tr>
+      <tr><td><strong>External accountant</strong></td><td>Adjacent</td><td>Not a Loop login — a referral-program partner (<code>LOOP-ICP.md</code> §4)</td><td>Nothing in-product. Named here so nobody scopes an accountant view into this page.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Permission implications</h3>
+  <p>Three real permission checks already exist and this page consumes them rather than adding
+  any:</p>
+  <ul>
+    <li><code>ability.can('view', 'capital', 'all')</code> — sidebar visibility and page access.</li>
+    <li><code>ability.can('manage', 'cards', 'pay_card_balance')</code> — the Pay balance action, via <code>useCardPermissions()</code> in <span class="path">src/components/pages/cards/hooks/use-card-permissions.ts</span>.</li>
+    <li><code>canViewCardStatements</code> / <code>canViewCards</code> — the statements table.</li>
+  </ul>
+  <p><strong>This feature has a two-role step, and it is not an approval.</strong> It is the
+  personal guarantee. Capital requires one for companies under $10M gross profit
+  (<code>LOOP-ICP.md</code> §6), and <span class="path">src/pages/guarantee_consent/</span> already
+  implements it as its own flow with its own address fields and credit-report consent modal. The
+  requester (a CFO, say) can submit the application; the guarantor (a named director) must
+  personally complete <code>/guarantee_consent</code>. The Credit page must show the application
+  as blocked-on-someone-else rather than blocked-on-you — see the
+  <em>Awaiting guarantor</em> state in §6.</p>
+</section>
+
+<section>
+  <span class="sec-num">§5</span>
+  <h2>Screen by screen</h2>
+  <p>Four screens. All sit in the standard shell: fixed 64px top nav, collapsing left sidebar
+  (48px rail below <code>md</code>, 240px above <code>lg</code>), fluid content column. All four
+  are wrapped by a new <code>CreditLayout</code> modelled directly on <code>CardsLayout</code> —
+  an <code>h1</code>, optional header actions, and a <code>Tabs</code> bar with
+  <code>type="underline"</code>.</p>
+
+  <h3>Screen 1 — Credit overview <code>/credit</code></h3>
+  <p>Purpose: answer "what can I still spend, what do I owe, when is it due" above the fold.</p>
+  <h4>Layout</h4>
+  <p>Content column, two-column grid at <code>xl</code> and up
+  (<code>grid gap-6 xl:grid-cols-2 xl:items-stretch</code>, the exact pattern from
+  <code>balances.tsx</code>), stacking to one column below. Left: <strong>Line of credit</strong>
+  summary card. Right: <strong>Upcoming payments</strong> table card. Full-width below:
+  <strong>Recent credit activity</strong>, capped at 10 rows with a link to the activity tab.</p>
+  <h4>Components</h4>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Component</th><th>Import</th><th>Props that matter</th></tr></thead>
+    <tbody>
+      <tr><td>Layout</td><td><span class="path">@/components/layout/layout</span></td><td><code>title</code></td></tr>
+      <tr><td>Tabs, Tabs.List, Tabs.Item</td><td><span class="path">@/components/ui/tabs</span></td><td><code>type="underline"</code>, <code>selectedKey</code>, <code>onSelectionChange</code>, <code>leadingIcon</code></td></tr>
+      <tr><td>TableCard.Root, TableCard.Header</td><td><span class="path">@/components/ui/table</span></td><td><code>size="sm"</code>, <code>title</code>, <code>contentTrailing</code>, <code>badge</code></td></tr>
+      <tr><td>Table, Table.Header, Table.Head, Table.Body, Table.Row, Table.Cell</td><td><span class="path">@/components/ui/table</span></td><td><code>size="sm"</code>, <code>isRowHeader</code>, <code>aria-label</code></td></tr>
+      <tr><td>ProgressBar</td><td><span class="path">@/components/base/progress-indicators/progress-indicators</span></td><td><code>min={0} max={creditLimit} value={outstandingBalance}</code></td></tr>
+      <tr><td>Button</td><td><span class="path">@/components/base/buttons/button</span></td><td><code>color="primary" size="md" href="/credit/pay"</code>; secondary and <code>link-color</code> variants for the rest</td></tr>
+      <tr><td>Badge</td><td><span class="path">@/components/base/badges/badges</span></td><td>Colour family by meaning — <code>success</code>, <code>warning</code>, <code>error</code>, <code>gray</code></td></tr>
+      <tr><td>CardPaymentStatusBadge</td><td><span class="path">@/components/pages/cards/components/card-payment-status-badge</span></td><td><code>status</code> from <code>PaymentStatusEnum</code>. Already maps <code>PAID</code> / <code>MINIMUM_PAID</code> / <code>PROCESSING</code> / <code>MISSED</code> / <code>FAILED</code>.</td></tr>
+      <tr><td>MoneyValue</td><td><span class="path">@/components/pages/cards/components/money-value</span></td><td><code>value={buildMoney(amount, currency)}</code>, <code>strong</code></td></tr>
+      <tr><td>CurrencyFlag</td><td><span class="path">@/components/ui/currency-flag</span></td><td><code>currency</code>, <code>size={18}</code></td></tr>
+      <tr><td>Tooltip, TooltipTrigger</td><td><span class="path">@/components/base/tooltip/tooltip</span></td><td><code>title</code>, <code>description</code>, <code>placement</code> — for the CAD-equivalent note</td></tr>
+      <tr><td>Skeleton</td><td><span class="path">@/components/ui/skeleton</span></td><td>Loading</td></tr>
+      <tr><td>LoadingIndicator</td><td><span class="path">@/components/ui/loading-indicator</span></td><td><code>type="logo" size="lg"</code></td></tr>
+      <tr><td>ErrorState</td><td><span class="path">@/components/ui/error-state</span></td><td><code>title</code>, <code>description</code>, <code>onRetry</code></td></tr>
+      <tr><td>EmptyState</td><td><span class="path">@/components/ui/empty-state</span></td><td>No-activity state</td></tr>
+      <tr><td>AlertBanner</td><td><span class="path">@/components/ui/alert-banner</span></td><td><code>variant</code>, <code>title</code>, <code>message</code>, <code>action</code></td></tr>
+    </tbody>
+  </table></div>
+  <h4>Data</h4>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Displayed value</th><th>Source field</th><th>Rendering</th></tr></thead>
+    <tbody>
+      <tr><td>Credit limit</td><td><code>Fund.creditLimit</code> / <code>LineOfCredit.creditLimit</code></td><td><code>number-tabular</code>, per currency</td></tr>
+      <tr><td>Available credit</td><td><code>Fund.availableCredit</code></td><td><code>number-tabular</code>, per currency</td></tr>
+      <tr><td>Outstanding balance</td><td><code>Fund.outstandingBalance</code></td><td><code>number-tabular</code>, <code>strong</code></td></tr>
+      <tr><td>Repayment progress</td><td>derived — <code>outstandingBalance</code> against <code>creditLimit</code></td><td><code>ProgressBar</code>; no number of its own</td></tr>
+      <tr><td>Next payment amount + date</td><td><code>Fund.nextPayment.amount</code>, <code>.dueDate</code>, <code>.status</code></td><td><code>number-tabular</code> + <code>formatDate(date, locale)</code></td></tr>
+      <tr><td>Upcoming payments rows</td><td><code>Fund.paymentSchedule</code> — <code>amountDue</code>, <code>dueDate</code></td><td>Table, amounts right-aligned in <code>number-tabular</code></td></tr>
+      <tr><td>Billing period</td><td><code>Fund.billingCycle.startDate</code> / <code>.endDate</code></td><td><code>text-sm text-tertiary</code> in <code>contentTrailing</code></td></tr>
+      <tr><td>Last payment</td><td><code>Fund.previousPayment</code></td><td><code>number-tabular</code> + date</td></tr>
+      <tr><td>Autopay state</td><td><code>cardRecurringPayment.enabled</code>, <code>.processingPaymentDate</code> via <code>GET_CARD_RECURRING_PAYMENT</code></td><td>Button label swap, as in <code>balances.tsx</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="flag is-assumption"><b>⚠️ ASSUMPTION:</b> <code>Fund.paymentSchedule</code> is typed as
+  a single <code>PaymentSchedule</code> (<code>amountDue</code>, <code>dueDate</code>), not a list.
+  Mercury's "Upcoming payments" shows several rows. This spec renders <em>one</em> next scheduled
+  payment plus <code>nextPayment</code>, and the multi-row schedule is
+  <code>⚠️ NEEDS: backend confirmation</code> that a list is available before the table earns its
+  height. If it is not, the right card is a two-row summary, not a table.</p>
+  <h4>Primary action</h4>
+  <p><strong>Pay balance</strong> — one <code>button-primary</code>, routes to the repayment wizard.
+  Everything else on the page is <code>secondary</code>, <code>tertiary</code> or
+  <code>link-color</code>.</p>
+
+  <h3>Screen 2 — Balances &amp; statements <code>/credit/balances</code></h3>
+  <p>Purpose: the per-currency statement detail. This screen is a <strong>relocation</strong>, not
+  a new build — <code>CardBalancesPage</code> in <span class="path">src/components/pages/cards/balances.tsx</span>
+  already does exactly this and is re-parented under <code>CreditLayout</code>.</p>
+  <h4>Components</h4>
+  <p>Unchanged from <code>balances.tsx</code>: <code>BalanceSummary</code>
+  (<span class="path">@/components/pages/cards/components/balances/balance-summary</span>),
+  <code>CurrentBillingPeriodCard</code>, <code>StatementCard</code>,
+  <code>StatementAmountsTable</code>, <code>CardStatementsDownloadModal</code>. Columns are
+  Currency · Previous ending balance · Credits · Debits · Ending balance · Minimum payment, over
+  <code>LOOP_BASE_CURRENCIES</code>.</p>
+  <h4>Primary action</h4>
+  <p><strong>Pay balance</strong> — same single primary as Screen 1. <em>Download statements</em>
+  and the autopay toggle stay <code>secondary</code>.</p>
+
+  <h3>Screen 3 — Pay balance <code>/credit/pay</code></h3>
+  <p>Purpose: pay down the outstanding balance. Also a <strong>relocation</strong> — the wizard at
+  <span class="path">src/components/pages/cards/pay/</span> is reused whole.</p>
+  <h4>Layout</h4>
+  <p><code>WizardShell</code> (<span class="path">@/components/pages/cards/pay/components/wizard-shell</span>):
+  centred <code>max-w-xl</code> column, back arrow, <code>h1</code>, <code>WizardProgress</code>.
+  Existing steps: <code>dashboard-step</code> → <code>amount-step</code> /
+  <code>custom-amount-step</code> → <code>source-type-step</code> →
+  <code>single-account-step</code> / <code>multi-account-step</code> → <code>review-step</code> →
+  <code>success-step</code>.</p>
+  <h4>Fields</h4>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Field</th><th>Control</th><th>Validation</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td>Payment amount</td><td><code>option-card</code> choice: statement balance / minimum payment / custom</td><td>Existing rules in <span class="path">src/components/pages/cards/pay/utils.ts</span> — do not rewrite</td><td>Statement balance</td></tr>
+      <tr><td>Custom amount</td><td>Numeric input, <code>inputMode="decimal"</code></td><td>&gt; 0 and ≤ outstanding balance, per currency</td><td>Empty</td></tr>
+      <tr><td>Currency</td><td>Derived from the balance being paid</td><td>Must be in <code>LOOP_BASE_CURRENCIES</code></td><td>Currency with the largest balance</td></tr>
+      <tr><td>Funding source</td><td><code>source-type-step</code> → <code>account-row</code> list</td><td>Verified, connected, not <code>reconnectionRequired</code></td><td>None — explicit choice</td></tr>
+    </tbody>
+  </table></div>
+  <h4>Primary action</h4>
+  <p><strong>Confirm payment</strong> on <code>review-step</code>. One primary per step.</p>
+  <p class="flag"><b>⚠️ NEEDS:</b> if §3's placement decision keeps <code>/cards/pay</code> where it
+  is, Screen 3 is deleted from this spec and Screens 1–2 link out instead. Do not build both.</p>
+
+  <h3>Screen 4 — Apply for credit <code>/credit/apply</code></h3>
+  <p>Purpose: the application. <strong>Already built</strong> —
+  <span class="path">src/pages/credit/apply.tsx</span> + <code>CreditApplicationForm</code>. The
+  only change is placement: it becomes the empty state of <code>/credit</code> and gains a tab, so
+  it stops being a Home block that vanishes once dismissed.</p>
+  <h4>Fields (existing — reproduced so §11 does not re-derive them)</h4>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Field</th><th>Control</th><th>Validation</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>totalBusinessRevenue</code></td><td>Number input, <code>$</code> prefix</td><td>Required, &gt; 0, 2dp</td><td>Empty</td></tr>
+      <tr><td><code>averageGrossProfitMargin</code></td><td>Number input, <code>%</code> suffix</td><td>Required, 0–100</td><td>Empty</td></tr>
+      <tr><td><code>currentlyProfitable</code></td><td><code>RadioGroup</code> (react-aria-components)</td><td>Required</td><td>Unset</td></tr>
+      <tr><td><code>currentTotalDebtOutstanding</code></td><td>Number input, <code>$</code> prefix</td><td>Required, ≥ 0</td><td>Empty</td></tr>
+      <tr><td><code>averageDebtPaymentsPerMonth</code></td><td>Number input, <code>$</code> prefix</td><td>Required, ≥ 0</td><td>Empty</td></tr>
+      <tr><td><code>primarySourceOfRevenue</code></td><td><code>Select</code> · 5 <code>PrimaryRevenueSourceEnum</code> options</td><td>Required</td><td>Unset</td></tr>
+      <tr><td><code>monthsPayingBalanceInFull</code></td><td><code>Select</code> · 4 <code>MonthsPayingBalanceInFullEnum</code> options</td><td>Required</td><td>Unset</td></tr>
+    </tbody>
+  </table></div>
+  <h4>Primary action</h4>
+  <p><strong>Submit Application</strong> → <code>CREATE_CREDIT_APPLICATION</code>. Existing string,
+  existing mutation.</p>
+
+  <p class="flag is-gap"><b>⚠️ GAP:</b> <strong>Download loan agreement</strong> — Mercury has it and
+  it is a reasonable ask, but no loan-document or agreement entity was found in
+  <code>src/gql/__generated__/graphql.ts</code>. The nearest real thing is
+  <code>CardStatementsDownloadModal</code>, which downloads statements, not agreements. Not built.
+  Owner: backend.</p>
+  <p class="flag is-gap"><b>⚠️ GAP:</b> <strong>No number-tabular utility exists in code.</strong>
+  <code>loop-design-system</code> specifies DM Mono for money, but <code>MoneyValue</code> renders
+  in the sans stack today. Either <code>MoneyValue</code> gains the mono class or the prototype
+  applies it locally and the change is raised separately — it is a system-wide fix, not this
+  feature's to make silently.</p>
+</section>
+
+<section>
+  <span class="sec-num">§6</span>
+  <h2>States</h2>
+  <div class="t-wrap"><table>
+    <thead><tr><th>State</th><th>Trigger</th><th>What the user sees</th><th>Way out</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Loading</strong></td><td>Query in flight</td><td><code>LoadingIndicator type="logo" size="lg"</code> centred under the tab bar; <code>Skeleton</code> for the two summary cards</td><td>Resolves</td></tr>
+      <tr><td><strong>No line of credit — not started</strong></td><td><code>creditApplication.status === NOT_STARTED</code></td><td>Overview replaced by the application pitch: what a limit is for, the <code>ConnectSalesChannelInlineCta</code> block, primary <em>Apply for credit</em></td><td>Apply</td></tr>
+      <tr><td><strong>Application in draft</strong></td><td><code>status === DRAFT</code></td><td><code>Badge color="gray"</code> "In progress"; primary <em>Continue application</em></td><td>Resume the form</td></tr>
+      <tr><td><strong>Awaiting guarantor</strong></td><td>Application submitted, personal guarantee outstanding (company &lt; $10M gross profit)</td><td>Named blocker — who has to act, that it is not the viewer, and the guarantor's name. <code>AlertBanner</code> is <code>success</code>/<code>error</code> only, so this is a <code>TableCard</code> with a <code>Badge color="warning"</code>, not a banner</td><td>Resend the guarantee request; owner completes <code>/guarantee_consent</code></td></tr>
+      <tr><td><strong>Verification in review</strong></td><td><code>status === COMPLETED</code> or <code>REVIEWED</code>, no <code>Fund</code> yet</td><td><code>Badge color="warning"</code> "Under review". No fabricated ETA — see §7</td><td>Nothing to do; state advances on its own</td></tr>
+      <tr><td><strong>Declined</strong></td><td><code>status === DEAD</code></td><td>Plain statement that the application was not approved, plus what changes the answer</td><td><strong>Contested — see the Self Serve check below</strong></td></tr>
+      <tr><td><strong>Active, nothing drawn</strong></td><td><code>Fund.outstandingBalance === 0</code></td><td>Full limit as available; <code>ProgressBar</code> at 0; <code>EmptyState</code> in Activity; <em>Pay balance</em> disabled</td><td>Spend on a card</td></tr>
+      <tr><td><strong>Limit reached</strong></td><td><code>Fund.availableCredit &lt;= 0</code></td><td><code>ProgressBar</code> full; available shown as $0.00 in <code>number-tabular</code>; <code>Badge color="error"</code> "Limit reached"; declines explained before the customer calls support</td><td>Pay balance (primary), or request a limit review</td></tr>
+      <tr><td><strong>Payment pending</strong></td><td><code>PaymentStatusEnum.Processing</code></td><td><code>CardPaymentStatusBadge</code> "Processing"; balance still shows the pre-payment figure with the pending amount called out</td><td>Wait; the row settles</td></tr>
+      <tr><td><strong>Payment failed</strong></td><td><code>PaymentStatusEnum.Failed</code></td><td><code>AlertBanner variant="error"</code> with the failed amount and date, <code>action</code> = <em>Try again</em></td><td>Retry with a different funding source</td></tr>
+      <tr><td><strong>Payment missed</strong></td><td><code>PaymentStatusEnum.Missed</code></td><td><code>CardPaymentStatusBadge</code> "Missed" on the schedule row; balance card gains a <code>semantic-error</code> accent</td><td>Pay balance (primary)</td></tr>
+      <tr><td><strong>Insufficient balance</strong></td><td>Funding account cannot cover the chosen amount</td><td>Inline validation on <code>custom-amount-step</code> — existing wizard behaviour</td><td>Lower the amount or change the source</td></tr>
+      <tr><td><strong>Bank account disconnected</strong></td><td><code>bankAccount.reconnectionRequired</code></td><td><code>ConnectBankAccountInlineCta</code> (<span class="path">@/components/pages/credit/connect-bank-account-inline-cta</span>) above the summary; <em>Pay balance</em> disabled with the reason stated</td><td>Reconnect the bank account</td></tr>
+      <tr><td><strong>Permission denied</strong></td><td><code>!ability.can('view','capital','all')</code></td><td>Nav item hidden; direct URL hits the existing unauthorized pattern (<code>CardsUnauthorized</code> equivalent)</td><td>Ask an admin</td></tr>
+      <tr><td><strong>Error</strong></td><td>Query error</td><td><code>ErrorState</code> with <code>onRetry</code></td><td>Retry</td></tr>
+      <tr><td><strong>Partial / degraded</strong></td><td><code>errorPolicy: 'all'</code> returns data plus errors — the pattern <code>balances.tsx</code> already uses</td><td>Cards that resolved render; the ones that did not show <code>ErrorState</code> in place. The page does not blank out.</td><td>Retry the failed card</td></tr>
+      <tr><td><strong>Account frozen / restricted</strong></td><td>Account suspended</td><td>Handled upstream by <span class="path">src/pages/suspended.tsx</span> — this page is never reached</td><td>n/a</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Dismissed</h3>
+  <ul>
+    <li><strong>FX rate expired</strong> — cannot occur. Repayment settles a balance in its own currency; no rate is quoted and no quote can time out. (It <em>would</em> occur if a customer could pay a USD balance from a CAD account at a quoted rate — <code>⚠️ NEEDS:</code> confirmation that cross-currency repayment is not supported.)</li>
+    <li><strong>Cutoff time missed</strong> — cannot occur on this page. Repayment is scheduled against a due date, not a same-day wire cutoff.</li>
+    <li><strong>Plan gated</strong> — cannot occur. Credit is gated by underwriting and the <code>capital</code> permission, not by plan tier. See §9.</li>
+    <li><strong>Empty (no data at all)</strong> — folded into <em>No line of credit</em>; there is no state where a customer has a <code>Fund</code> and no figures.</li>
+  </ul>
+
+  <h3>Self Serve check</h3>
+  <p>One state fails, and it is the one the verdict flagged. <strong>Declined</strong>
+  (<code>status === DEAD</code>) has no product-side exit: no reason code is exposed on
+  <code>CreditApplication</code>, no reapply-after date, no appeal. Its only exit today is
+  "contact support," and <code>LOOP-ICP.md</code> §2 is explicit — <em>any feature whose failure
+  mode is "contact support" fails Self Serve by construction</em>.</p>
+  <p>Two ways out, and the choice is a human's:</p>
+  <ul>
+    <li><strong>Design an exit.</strong> Show a reapply-eligible date and the one or two things that
+    would change the answer — most plausibly connecting more sales channels, which
+    <code>connectSalesChannel</code> copy already frames as raising the potential limit. Needs a
+    reason code and a reapply window from underwriting.</li>
+    <li><strong>Accept it.</strong> Declare the declined state attended-only, and accept that Self
+    Serve customers who are declined go to support. Legitimate if the declined volume is small —
+    but it should be a decision, not a default.</li>
+  </ul>
+  <p class="flag"><b>⚠️ NEEDS: decision</b> — the declined-application exit. Owner: PM + Credit /
+  underwriting. This is the one open item that could change the verdict from
+  <em>BUILD WITH CAVEAT</em> to <em>BUILD</em>.</p>
+  <p><strong>Two states improve Self Serve as specified.</strong> <em>Limit reached</em> explains a
+  card decline in-product, which is otherwise a support ticket. <em>Bank account disconnected</em>
+  names the blocker and links the fix instead of failing the payment silently.</p>
+</section>
+
+<section>
+  <span class="sec-num">§7</span>
+  <h2>Copy</h2>
+  <p>New strings only. Strings already shipped under the <code>creditApplication</code> and
+  <code>cards.balances</code> namespaces are reused verbatim and are not re-litigated here.</p>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Location</th><th>String</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Sidebar nav item</td><td>Credit</td><td>New key <code>components.sidebar.credit</code>. Not "Capital" — that is the marketing name; the product surface and the schema both say credit, and §5's data comes from <code>LineOfCredit</code>.</td></tr>
+      <tr><td>Page title (<code>h1</code>)</td><td>Credit</td><td>Matches the nav item</td></tr>
+      <tr><td>Tab 1</td><td>Overview</td><td>Icon <code>CoinsHand</code></td></tr>
+      <tr><td>Tab 2</td><td>Balances</td><td>Reuses <code>cards.tabs.balances</code>. Icon <code>Wallet03</code>, as today.</td></tr>
+      <tr><td>Tab 3</td><td>Pay balance</td><td>Reuses <code>cards.tabs.payCard</code>. Icon <code>CreditCardRefresh</code>.</td></tr>
+      <tr><td>Tab 4</td><td>Activity</td><td>Icon <code>Repeat01</code>, matching the Transactions nav</td></tr>
+      <tr><td>Summary card title</td><td>Line of credit</td><td></td></tr>
+      <tr><td>Metric label</td><td>Available to spend</td><td>Not "available credit" — the customer's question is what they can spend</td></tr>
+      <tr><td>Metric label</td><td>Outstanding balance</td><td>Matches the schema field and Mercury's own label</td></tr>
+      <tr><td>Metric label</td><td>Credit limit</td><td></td></tr>
+      <tr><td>Progress bar label</td><td>Repayment progress</td><td></td></tr>
+      <tr><td>Schedule card title</td><td>Upcoming payments</td><td></td></tr>
+      <tr><td>Schedule columns</td><td>Date · Amount · Status</td><td>Amount right-aligned, <code>number-tabular</code></td></tr>
+      <tr><td>Schedule empty</td><td>No payments scheduled. Your next payment appears here once your statement is issued.</td><td></td></tr>
+      <tr><td>Primary action</td><td>Pay balance</td><td></td></tr>
+      <tr><td>Secondary action</td><td>Set up autopay / Autopay on</td><td>Label swaps on <code>cardRecurringPayment.enabled</code>, mirroring <code>balances.tsx</code></td></tr>
+      <tr><td>Activity empty</td><td>No credit activity yet. Card spend and payments on your line of credit appear here.</td><td></td></tr>
+      <tr><td>No line of credit — title</td><td>You don't have a line of credit yet</td><td></td></tr>
+      <tr><td>No line of credit — body</td><td>Apply to get a credit limit you can distribute across your cards.</td><td>Grounded in bankonloop.com/capital: "Get flexible credit limits to grow your business. Easily distribute funds across your cards." No amount stated — see the numbers rule below.</td></tr>
+      <tr><td>No line of credit — CTA</td><td>Apply for credit</td><td>Routes to <code>/credit/apply</code></td></tr>
+      <tr><td>Under review — badge</td><td>Under review</td><td></td></tr>
+      <tr><td>Under review — body</td><td>We're reviewing your application. You'll get an email when there's a decision.</td><td>No timeframe — no published SLA was found. Deliberately written to not need one.</td></tr>
+      <tr><td>Awaiting guarantor — badge</td><td>Waiting on guarantor</td><td><code>Badge color="warning"</code></td></tr>
+      <tr><td>Awaiting guarantor — body</td><td>Your application needs a personal guarantee from {'{'}guarantorName{'}'} before we can review it.</td><td>Names the blocker and that it is not the viewer (§4)</td></tr>
+      <tr><td>Awaiting guarantor — action</td><td>Resend request</td><td></td></tr>
+      <tr><td>Limit reached — badge</td><td>Limit reached</td><td><code>Badge color="error"</code></td></tr>
+      <tr><td>Limit reached — body</td><td>You've used your full credit limit. New card transactions will be declined until you pay down your balance.</td><td>States the consequence — this is the line that prevents a support ticket</td></tr>
+      <tr><td>Payment failed — title</td><td>Payment didn't go through</td><td><code>AlertBanner variant="error"</code></td></tr>
+      <tr><td>Payment failed — message</td><td>Your payment of {'{'}amount{'}'} on {'{'}date{'}'} was returned. Try again with a different account.</td><td>Says what went wrong and what to do</td></tr>
+      <tr><td>Payment failed — action</td><td>Try again</td><td></td></tr>
+      <tr><td>Disconnected bank — body</td><td>Reconnect your bank account to make a payment.</td><td>Pairs with the existing <code>connectBankAccount</code> CTA</td></tr>
+      <tr><td>Declined — title</td><td>Your application wasn't approved</td><td>Body copy blocked on the §6 decision — placeholder, not drafted</td></tr>
+    </tbody>
+  </table></div>
+  <p class="flag"><b>⚠️ NEEDS: compliance review</b> — cost-of-credit disclosure. Any screen showing
+  an interest rate, an APR, a fee, or a repayment total is regulated disclosure in Canada and is
+  not this spec's to draft. Two places are affected: the <em>Upcoming payments</em> card, if
+  principal/interest is ever split, and the <em>No line of credit</em> pitch, if rates appear. Both
+  ship rate-free in this spec. Nothing in the copy above states a rate, and that is deliberate.</p>
+  <p class="flag"><b>⚠️ NEEDS: compliance review</b> — the <em>Declined</em> body. Adverse-action
+  language is regulated and is fixed wording. Placeholder only.</p>
+  <p><strong>Numbers rule, applied.</strong> No copy above contains a rate, limit, minimum or
+  timeframe. The 1.2% / 1.5% monthly rates on bankonloop.com/capital belong to invoice and PO
+  financing, which is out of scope; "up to $1M" appears in the existing
+  <code>creditApplication.subtitle</code> and is reused only there, where it already ships — it is
+  not repeated on the new surfaces. If it graduates, every new string needs a
+  <code>next-intl</code> key and a French (fr-ca) counterpart; Loop markets bilingually
+  (<code>LOOP-ICP.md</code> §7.2).</p>
+</section>
+
+<section>
+  <span class="sec-num">§8</span>
+  <h2>Design-system decisions</h2>
+  <div class="t-wrap"><table>
+    <thead><tr><th>Decision</th><th>Token</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Primary action — <em>Pay balance</em></td><td><code>button-primary</code> · <code>bg-brand-primary</code> · <code>rounded.pill</code> · <code>shadows.xs</code></td><td>One per view. Paying down is the only high-emphasis action; <em>Download statements</em>, <em>Set up autopay</em> and <em>View all activity</em> drop to <code>secondary</code> / <code>link-color</code>. On the no-limit state the single primary becomes <em>Apply for credit</em> — <em>Pay balance</em> is absent, not disabled.</td></tr>
+      <tr><td>Secondary actions</td><td><code>button-secondary</code> (<code>bg-brand-secondary</code> + <code>shadows.xs-skeuomorphic</code>)</td><td>The skeuomorphic inset is for non-primary buttons only; the primary stays flat.</td></tr>
+      <tr><td>Card + table containers</td><td><code>rounded.xl</code> · <code>shadows.lg</code> · 1px <code>border-secondary</code></td><td>Default container geometry. Referenced as tokens, not pixels — legacy is 24px, Evergreen 16px.</td></tr>
+      <tr><td>Badges</td><td><code>rounded.pill</code>, colour family by meaning</td><td><code>success</code> paid · <code>warning</code> under review / waiting on guarantor · <code>error</code> missed / limit reached · <code>gray</code> draft. Never recoloured to brand.</td></tr>
+      <tr><td>Elevation ladder</td><td><code>shadows.xs</code> controls → <code>shadows.lg</code> cards → <code>shadows.2xl</code> the statements-download modal</td><td>Elevation matches altitude.</td></tr>
+      <tr><td>Page title</td><td><code>display-xs</code> (DM Sans 600, 24/32)</td><td>Matches the existing <code>text-2xl font-semibold</code> in <code>cards-layout.tsx</code>. No negative tracking below 36px.</td></tr>
+      <tr><td>Card titles</td><td><code>text-lg</code> 600</td><td>Matches <code>credit-card-balance.tsx</code>.</td></tr>
+      <tr><td>Table cells, labels, buttons</td><td><code>text-sm</code></td><td>UI default.</td></tr>
+      <tr><td>Helper and meta text</td><td><code>text-xs</code> · <code>text-tertiary</code> → <code>text-quaternary</code></td><td>Emphasis ladder is the neutral text ramp; no invented greys.</td></tr>
+      <tr><td>All money figures</td><td><code>number-tabular</code> (DM Mono 500, 16/24)</td><td>Limit, available, outstanding, every schedule amount, every statement cell. Columns of figures must align — this is a page made of money columns. See the §5 gap: <code>MoneyValue</code> does not do this today.</td></tr>
+      <tr><td>Dates</td><td><code>text-sm</code> DM Sans via <code>formatDate(date, locale)</code></td><td>Dates are not figures; they stay in the sans stack, as in <code>balances.tsx</code>.</td></tr>
+      <tr><td>Repayment progress bar</td><td>Track <code>bg-tertiary</code>, fill <code>bg-brand-solid</code></td><td><strong>Correction to the existing component.</strong> <code>credit-card-balance.tsx</code> hardcodes <code>bg-[var(--loop-light-green)]</code> — a raw legacy variable through an arbitrary-value class. The new page uses the alias. Brand green here means "drawn against your limit," which is <em>brand and state</em>, not status — utilisation is not an error.</td></tr>
+      <tr><td>Missed payment / limit reached</td><td><code>semantic-error</code> + <code>semantic-error-bg</code></td><td>Status colour, reserved meaning. Never brand green.</td></tr>
+      <tr><td>Under review / waiting on guarantor</td><td><code>semantic-warning</code> + <code>semantic-warning-bg</code></td><td>Attention-needed, not failure.</td></tr>
+      <tr><td>Payment completed</td><td><code>semantic-success</code> (#30ac2e)</td><td>Deliberately a different hue from Loop Green so "succeeded" never blurs into "branded."</td></tr>
+      <tr><td>Tab bar</td><td><code>Tabs.List type="underline"</code>, active underline <code>border-brand</code></td><td>Consistent with Cards and Transactions. Brand green as an active state is correct use.</td></tr>
+      <tr><td>Grid + spacing</td><td><code>spacing.lg</code> (24px) card gutters, <code>spacing.xl</code> (32px) between sections</td><td>Matches <code>gap-6</code> / <code>gap-8</code> in <code>balances.tsx</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>Semantic aliases only — no raw hex, no raw primitives, no doubled prefixes. The one place the live code breaks this (<code>--loop-light-green</code> on the progress bar) is corrected above rather than copied.</li>
+    <li>Brand green is action and brand, never status; success is <code>semantic-success</code>.</li>
+    <li>Tokens, not pixels — the radius scale is theme-dependent (legacy 20px, Evergreen 12px).</li>
+    <li>Type is DM Sans throughout, DM Mono for figures. Articulat CF, Inter and Roboto Mono are legacy and do not appear.</li>
+  </ul>
+</section>
+
+<section>
+  <span class="sec-num">§9</span>
+  <h2>Plan gating</h2>
+  <p>
+    <span class="pill is-brand">Basic $0</span>
+    <span class="pill is-brand">Loop Plus $79</span>
+    <span class="pill is-brand">Loop Power $299</span>
+  </p>
+  <p><strong>Ungated by plan — all three tiers.</strong> Access is gated by two other things, both
+  already implemented: the <code>capital</code> ability
+  (<code>hasLineOfCredit &amp;&amp; manageLinesOfCredit</code>, <span class="path">src/provider/ability-provider.tsx</span>)
+  and the underwriting outcome. No plan check appears anywhere in the credit code that was read.</p>
+  <p>This is the right call for the segment. Gating credit to Power would scope it to Key Accounts
+  (<code>LOOP-ICP.md</code> §3) and cut off exactly the Self Serve customers whose card spend a
+  limit is supposed to grow — a Self Serve account clears its floor at
+  <code>$50k/year in card spend</code>, and a credit limit is the most direct lever on that number.
+  Because it is ungated, §6 carries no plan-gated state, which is why that state is listed as
+  dismissed rather than designed.</p>
+  <p class="flag is-assumption"><b>⚠️ ASSUMPTION:</b> that no plan gate exists. Established by
+  absence — no plan or subscription check appears in <code>ability-provider.tsx</code>,
+  <code>use-home-state.ts</code>, <code>credit-application-form.tsx</code> or
+  <code>balances.tsx</code>. Absence of a check in the frontend is not proof of absence in
+  underwriting policy. Worth one confirmation.</p>
+</section>
+
+<section>
+  <span class="sec-num">§10</span>
+  <h2>Out of scope, open questions, assumptions</h2>
+
+  <h3>Out of scope</h3>
+  <ul>
+    <li><strong>Capital for Invoices</strong> — invoice and PO financing (1.2% / 1.5% monthly, bankonloop.com/capital). Real product, strong ICP fit for manufacturers and retail brands with production runs, zero GraphQL model. Confirmed out of scope with the requester. Worth its own spec once the backend exists.</li>
+    <li><strong>Venture debt and SAFEs</strong> — the other two Mercury tabs. Dropped on ICP grounds (§2); SAFEs additionally contradicts Loop's published equity-free positioning.</li>
+    <li><strong>Distributing the limit across individual cards</strong> — bankonloop.com/capital sells this ("easily distribute funds across your cards") and <code>CreditCardLimitSettings</code> / <code>CreditCardProcessorLimitSettings</code> exist in the schema, but per-card limits are Cards' surface, not Credit's. Credit shows the account-level limit and links to Cards.</li>
+    <li><strong>Changing the application form</strong> — <code>CreditApplicationForm</code> ships as-is. It has real issues (a hand-rolled <code>&lt;input&gt;</code> instead of the <code>Input</code> component, raw <code>border-neutral-300</code> and <code>text-red-600</code> instead of aliases, hand-built radios) but fixing them is <code>loop-design-qa</code> work on existing code, not this feature.</li>
+    <li><strong>Credit limit increase requests</strong> — no mutation exists. The <em>Limit reached</em> state names the option in copy only.</li>
+    <li><strong>Notifications</strong> — <code>AccountLineOfCreditSettings.oneDayLeftPaymentReminder</code> already exists and is configured under Settings → Notifications. Not duplicated here.</li>
+  </ul>
+
+  <h3>Open questions</h3>
+  <ul>
+    <li><b>⚠️ NEEDS: placement decision</b> — do <code>/cards/balances</code> and <code>/cards/pay</code> move under <code>/credit</code>, or does Credit link out? This spec builds the move. <em>Owner: PM + Cards squad</em> — it changes shipped routes.</li>
+    <li><b>⚠️ NEEDS: decision</b> — the declined-application exit (§6). Design a real next step, or accept the state as attended-only. <em>Owner: PM + underwriting.</em> This is the item that would clear the verdict caveat.</li>
+    <li><b>⚠️ NEEDS: decision</b> — the nav item's visibility gate. <code>capital</code> requires <code>hasLineOfCredit</code>, so an applicant never sees the tab, and applying stays a Home-block behaviour. Either broaden the gate to "eligible to apply" or accept that Credit only appears post-approval. <em>Owner: PM + platform.</em></li>
+    <li><b>⚠️ NEEDS: backend confirmation</b> — is <code>Fund.paymentSchedule</code> a single upcoming payment or a list? Determines whether the right-hand card is a table or a two-row summary (§5). <em>Owner: backend.</em></li>
+    <li><b>⚠️ NEEDS: confirmation</b> — can a customer repay a balance in one currency from an account in another? If yes, <em>FX rate expired</em> comes back off the dismissed list (§6). <em>Owner: backend / payments.</em></li>
+    <li><b>⚠️ NEEDS: compliance review</b> — cost-of-credit disclosure on any surface that shows a rate, APR, fee or repayment total. Everything in §7 ships rate-free to avoid it. <em>Owner: Compliance.</em></li>
+    <li><b>⚠️ NEEDS: compliance review</b> — adverse-action wording for the <em>Declined</em> state. Placeholder only. <em>Owner: Compliance.</em></li>
+    <li><b>⚠️ GAP</b> — no loan-agreement document entity, so Mercury's <em>Download loan agreement</em> is not built. <em>Owner: backend.</em></li>
+    <li><b>⚠️ GAP</b> — <code>MoneyValue</code> does not render in DM Mono, so <code>number-tabular</code> cannot be honoured without either changing the shared component or applying the class locally. System-wide; should not be fixed silently inside a feature. <em>Owner: design system.</em></li>
+  </ul>
+
+  <h3>Assumptions</h3>
+  <ul>
+    <li><b>⚠️ ASSUMPTION</b> — scope is the card line of credit only, confirmed with the requester. Capital for Invoices deferred.</li>
+    <li><b>⚠️ ASSUMPTION</b> — <code>Fund</code> is the borrower-facing view of the same line of credit that <code>LineOfCredit</code> describes, and one account has one. Both types carry <code>creditLimit</code>, <code>availableCredit</code> and <code>outstandingBalance</code>; nothing read establishes whether an account can hold more than one. If it can, the Overview needs a selector this spec does not have.</li>
+    <li><b>⚠️ ASSUMPTION</b> — no plan gate on credit, established by absence of any plan check in the code read (§9).</li>
+    <li><b>⚠️ ASSUMPTION</b> — the personal-guarantee threshold ("under $10M in gross profit") is from <code>LOOP-ICP.md</code> §6, which is sourced from a 2025 segmentation document. That file's own footer says to check a threshold is current before leaning on it. Copy in §7 names the guarantee without naming the threshold, so a stale number cannot leak into the UI.</li>
+    <li><b>⚠️ ASSUMPTION</b> — <code>next-app</code> at <span class="path">~/Downloads/next-app-main</span> is current enough to spec against. It was not pulled or version-checked in this session. The <code>loop-design-system</code> review of 2026-08-07 pinned <code>9cdfd06</code>.</li>
+    <li><b>⚠️ ASSUMPTION</b> — the legacy theme is what renders. Evergreen is behind <code>enable-evergreen-theme</code>; every geometry decision in §8 is written as a token so both themes resolve correctly.</li>
+  </ul>
+</section>
+
+<section class="handoff">
+  <span class="sec-num">§11</span>
+  <h2>Prototype build plan</h2>
+  <p>Input to <code>prototype-loop-ui</code>. Instructions, not description — that skill
+  owns sandbox rules, component grounding, verification and dual output from here.</p>
+  <div class="t-wrap"><table>
+    <tr><th>Mode</th><td><strong>B</strong> — new multi-screen surface, with two screens replicated from production (mode C behaviour inside it)</td></tr>
+    <tr><th>Read first</th><td><span class="path">src/components/pages/cards/components/cards-layout.tsx</span> (tab shell) · <span class="path">src/components/pages/cards/balances.tsx</span> (card + table composition, <code>errorPolicy: 'all'</code> degradation) · <span class="path">src/components/pages/home/credit-card-balance.tsx</span> (limit + progress + due-date composition) · <span class="path">src/components/pages/cards/pay/components/wizard-shell.tsx</span> (wizard chrome) · <span class="path">src/components/layout/sidebar/components/default-items.tsx</span> (nav item shape)</td></tr>
+    <tr><th>Sandbox</th><td><span class="path">src/components/pages/_prototype-scratch/credit/</span></td></tr>
+    <tr><th>Environment</th><td>next-app — <span class="path">~/Downloads/next-app-main</span>. Full path: <code>.tsx</code> stories <em>and</em> demo HTML.</td></tr>
+    <tr><th>Data</th><td>Mocked. Local flow state only — no Apollo, no <code>useQuery</code>, no data hooks. Shape mocks against the real types: <code>Fund</code>, <code>LineOfCredit</code>, <code>PaymentSchedule</code>, <code>Payment</code>, <code>PaymentStatusEnum</code>, <code>CreditApplicationStatusEnum</code>, <code>Money</code>.</td></tr>
+    <tr><th>Sidebar</th><td>Add the Credit item to the sandbox copy of <code>default-items.tsx</code> only. <code>CoinsHand</code>, positioned after Cards. Do not touch the real file.</td></tr>
+    <tr><th>Currencies</th><td>Render over <code>LOOP_BASE_CURRENCIES</code> with <code>CurrencyFlag</code>, not USD-only. This is the main visual departure from the Mercury reference.</td></tr>
+    <tr><th>Money rendering</th><td>Apply <code>font-mono</code> (DM Mono) to every figure locally in the sandbox. Note in the handoff that shared <code>MoneyValue</code> does not do this — flagged in §5, not fixed here.</td></tr>
+  </table></div>
+  <h3>Story exports</h3>
+  <ul>
+    <li><code>Default</code> — active line of credit, balance drawn, one upcoming payment, recent activity</li>
+    <li><code>NoLineOfCredit</code> — <code>NOT_STARTED</code>; the apply pitch with <code>ConnectSalesChannelInlineCta</code></li>
+    <li><code>ApplicationUnderReview</code> — <code>COMPLETED</code> / <code>REVIEWED</code>, warning badge, no ETA</li>
+    <li><code>AwaitingGuarantor</code> — blocked on a named third party</li>
+    <li><code>Declined</code> — <code>DEAD</code>; build with the placeholder copy so the missing exit is <em>visible</em> in review rather than argued about in a doc</li>
+    <li><code>NothingDrawn</code> — full limit available, progress at 0, activity empty</li>
+    <li><code>LimitReached</code> — available at $0.00, error badge, decline consequence stated</li>
+    <li><code>PaymentMissed</code> — missed badge on the schedule row, error accent on the summary</li>
+    <li><code>PaymentFailed</code> — <code>AlertBanner variant="error"</code> with a retry action</li>
+    <li><code>BankDisconnected</code> — <code>ConnectBankAccountInlineCta</code>, pay disabled with the reason</li>
+    <li><code>Loading</code> — <code>LoadingIndicator</code> + <code>Skeleton</code></li>
+    <li><code>PartialError</code> — one card resolved, one in <code>ErrorState</code>; the page does not blank</li>
+    <li><code>PermissionDenied</code> — unauthorized pattern at the direct URL</li>
+    <li><code>BalancesTab</code> — Screen 2, re-parented under <code>CreditLayout</code></li>
+    <li><code>PayWizardStep1</code> — Screen 3 entry, <code>dashboard-step</code> in the new shell</li>
+  </ul>
+  <h3>Demo HTML exports</h3>
+  <ul>
+    <li><code>Default</code> — the screen the review is actually about</li>
+    <li><code>NoLineOfCredit</code> — the state most Loop accounts are in today</li>
+    <li><code>Declined</code> — carries the open question that needs a decision</li>
+    <li><code>LimitReached</code> — the Self Serve win, worth seeing rendered</li>
+    <li><code>BalancesTab</code> — proves the relocation reads correctly under the new parent</li>
+  </ul>
+  <h3>Do not build</h3>
+  <ul>
+    <li>Venture debt, SAFEs, invoice financing, PO financing — any tab beyond the four in §5</li>
+    <li><em>Download loan agreement</em> — flagged gap, no entity behind it</li>
+    <li>Any rate, APR, fee or repayment-total figure — compliance-gated, and no verified number exists</li>
+    <li>Edits to the real <code>default-items.tsx</code>, <code>balances.tsx</code>, or anything under <code>src/components/pages/cards/pay/</code></li>
+  </ul>
+</section>
+
+<footer>
+  Generated by the <b>spec-loop-feature</b> skill. Customer definitions from
+  <code>LOOP-ICP.md</code>; tokens and component rules from <code>loop-design-system</code>;
+  product surface read from <code>~/Downloads/next-app-main</code>; build handed to
+  <code>prototype-loop-ui</code>. Nothing has been built — this spec is awaiting review.
+</footer>
+
+</div>
+</body>
+</html>
