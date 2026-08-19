@@ -616,6 +616,34 @@ requested over-limit would be used for.
 - **An approved application links out with "Open page →"** (a real `ArrowRight` icon, not an emoji) rather
   than "View decision" — there's a page to go to, so the label says so. Declined still says View decision.
 
+### Multi-selects are dropdowns, not chip rows (2026-08-19)
+
+Every "pick as many as apply" question is now a **field you click to open a checkbox dropdown, with the
+chosen values shown as pills back in the field** — `MultiSelectField` in `application/fields.tsx`, replacing
+`MultiSelectChips`. Five questions: FQ-01 (inventory storage), PQ-4a (countries), FQ-03 (funding), FQ-04
+(owner compensation), Q19 (card uses). The trigger is styled to match the `Select` next to it, so the
+industry dropdown and the inventory dropdown read as the same control. Picking *Other* still reveals the
+write-in underneath.
+
+Built from the same primitives as Loop's production `MultiSelectFilter`
+(`transactions-v2/components/filters/`) — RAC `Popover` + `Dialog` + `ListBox selectionMode="multiple"` +
+`CheckboxBase`, same popover ring/shadow/animation classes. That component itself isn't reusable here: it
+renders a removable filter chip anchored to an external trigger, not a form field.
+
+⚠️ **Three things a standalone RAC `Popover` does not give you**, all found by clicking rather than reading:
+
+- **`--trigger-width` is never set** unless the popover belongs to a `Select`/`ComboBox`, so
+  `w-(--trigger-width)` silently collapses the menu to content width. The trigger is measured on open and
+  the width passed via `style` instead.
+- **Outside-press and Escape don't dismiss it.** Both are handled explicitly with document-level capture
+  listeners while open. Passing `ref` to `Popover` does *not* hand back the popover DOM node, so the
+  "is this click inside?" test uses a ref on a wrapper `div` inside the `Dialog`.
+- **Escape wipes the selection.** RAC's multiple-selection `ListBox` treats Escape as *clear selection*, and
+  this repo's `react-aria-components@1.17.0` predates the `escapeKeyBehavior` prop that would turn it off.
+  Intercepting the key event doesn't help — the clear still arrives through `onSelectionChange`. So the
+  guard is at the destination: an Escape sets `ignoreNextClear`, and the next empty selection change is
+  dropped. Verified that Escape closes the menu with the answer intact.
+
 ### Strength meter removed, and the flow walks freely (2026-08-19)
 
 **The "Application strength" meter is gone from the UI.** Spec §4.2 asks for it, but its own weight table
