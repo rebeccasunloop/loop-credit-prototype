@@ -9,11 +9,23 @@ accounts-list structure below, which on the same day gained a summary band and a
 **Cato's priority is the application flow — it ships next — so the accounts view is deliberately functional
 rather than polished.**
 
+## Live demo
+
+**<https://rebeccasunloop.github.io/loop-credit-prototype/>** — clickable, no install. Deep-link with the
+hash: [`#/credit`](https://rebeccasunloop.github.io/loop-credit-prototype/#/credit) ·
+[`#/credit/apply`](https://rebeccasunloop.github.io/loop-credit-prototype/#/credit/apply) ·
+[`#/credit/line`](https://rebeccasunloop.github.io/loop-credit-prototype/#/credit/line) ·
+[`#/credit/applications`](https://rebeccasunloop.github.io/loop-credit-prototype/#/credit/applications).
+
+GitHub Pages serves `main` at root, so **pushing `index.html` to `main` is the deploy** — there is no build
+step and no action to wait on, only Pages' own ~1 minute cache. `.nojekyll` is committed so the bundle is
+served verbatim rather than run through Jekyll.
+
 ## Files
 
 | Path | What it is |
 | --- | --- |
-| **`loop-credit-prototype.html`** | **The prototype.** One self-contained file, ~2.2 MB. Open it and click. No server, no network, no build. Real React, real Loop components, real state. |
+| **`index.html`** | **The prototype.** One self-contained file, ~2.1 MB. Open it and click, or use the live link above. No server, no network, no build. Real React, real Loop components, real state. Named `index.html` so GitHub Pages serves it at the root URL; the build script still emits it as `dist/loop-credit-prototype.html`, so copy it over that name. |
 | `credit-page-spec2.md` | **The current spec.** Revision spec v2 — confirmed product model, the IA restructure, data-integrity fixes, and the surfaces built in this pass. Where it disagrees with anything below, it wins. |
 | `credit-page-spec.html` | The original build spec — segment-fit verdict, Mercury to Loop feature analysis, screen-by-screen, states, copy, design-system decisions. Superseded on IA and data by v2; still the reference for the segment reasoning. |
 | `Loop - Credit Application Questionnaire Flow (August 2026).pdf` | Cato Pastoll's design specification for the application. The questionnaire was built from it directly rather than re-specced. |
@@ -42,7 +54,8 @@ Step 2 placement.
 
 ## Using it
 
-Open `loop-credit-prototype.html` in any browser. A **Pick a user** panel sits bottom-left.
+Open the [live demo](https://rebeccasunloop.github.io/loop-credit-prototype/), or `index.html` in any
+browser. A **Pick a user** panel sits bottom-left.
 
 | User | What you get |
 | --- | --- |
@@ -227,7 +240,6 @@ where DS-1 (Business bank accounts) is already a required source at Step 2.
 - `ConnectBankPanel`, `INSTANT_CONNECTION_BENEFITS` and the page's `hasBankAccount` prop are **deleted**.
   So is the compliance-policy bullet that §8.2 disputed — it went with the panel.
 - `prefilledAnswers` now starts DS-1 **idle**, so the connect step is real rather than pre-satisfied.
-  Application strength correctly starts at 0%.
 - Header actions are two buttons instead of the Apply ▾ dropdown: **Request a limit increase**
   (secondary, `TrendUp02`) and **Apply for a term loan** (primary, `CoinsStacked01`).
 
@@ -604,6 +616,34 @@ requested over-limit would be used for.
 - **An approved application links out with "Open page →"** (a real `ArrowRight` icon, not an emoji) rather
   than "View decision" — there's a page to go to, so the label says so. Declined still says View decision.
 
+### Strength meter removed, and the flow walks freely (2026-08-19)
+
+**The "Application strength" meter is gone from the UI.** Spec §4.2 asks for it, but its own weight table
+makes it unusable as written: `completeness()` sums all four sources regardless of which ones the applicant
+was asked for, so a business below the $50,000 threshold that connects its bank — satisfying every
+requirement in the application — is told it is at **30%**, with no route to 100% that doesn't involve
+volunteering data the product never requested. 100% is reachable only by an applicant who is both above
+$150,000 governing spend *and* B2C, i.e. the heaviest-documentation case in the product. It also scores
+uploading 10 points below connecting, in plain view, which contradicts §4.1's instruction that the upload
+fallback "must be treated as a genuine equivalent rather than an afterthought."
+
+`completeness()` and `SOURCE_WEIGHTS` **stay in `rules.ts` with their unit tests**, so restoring the meter is
+re-adding one block to `application-shell.tsx` and one prop pass. Nothing was deleted from the rules engine.
+The **document counter is untouched** — spec §2's running counter still shows on Steps 2 and 3, now in its own
+panel rather than tucked under the bar.
+
+**`enforceGating` prop on `CreditApplicationFlow`, default `true`.** When false, Continue is never disabled and
+the "Before you continue" blocker list is hidden. The single-file demo passes `enforceGating={false}` via a
+**Skip required fields** checkbox in the prototype panel, **on by default** — so the whole application can be
+walked Step 1 → submitted without filling anything, which is what iterating on it needs. Turning the checkbox
+off restores real validation, blocker copy included. Storybook is unaffected: every story keeps
+`enforceGating` at its default, so the gated states stay reviewable.
+
+⚠️ **With gating off, the knockouts don't stop you either** — picking *Money services business* now continues
+rather than silently disabling Continue. That path was already unreachable in the single file (the decline
+screen is gated on `showKnockout`, which only the stories pass — see `spec-conformance-2026-08-19.md` §1.1);
+wiring it properly is still outstanding.
+
 ## What ships next: the application flow
 
 Cato's call is that **the application is the next feature to ship**, so that's where the design effort goes;
@@ -627,8 +667,8 @@ the accounts view above is correct but unpolished. What exists today:
 - Pick **Money services business** under *What industry are you in?*, or the lowest revenue band,
   to hit a knockout.
 - Tick **Other** under *Where do you store your inventory?* — a write-in field opens for the answer.
-- Hover either half of a progress bar. The green half names what's used, the grey half what's left —
-  on the line of credit's utilization bar and on the application-strength meter.
+- Hover either half of the line of credit's utilization bar. The green half names what's used, the grey
+  half what's left.
 - *Pay now* → **Convert to a loan** → change the term. 3 / 6 / 9 / 12 months re-derives the monthly
   payment, total to repay and APR live.
 - **The Overdue option on Term loans.** The status filter is a secondary-button dropdown in the table header;
@@ -689,12 +729,14 @@ cd ~/Downloads/next-app-main
 cd ~/Downloads/next-app-main
 node src/components/pages/_prototype-scratch/credit/standalone/build-css.mjs   # after CSS/token changes
 node src/components/pages/_prototype-scratch/credit/standalone/build.mjs
+cp src/components/pages/_prototype-scratch/credit/standalone/dist/loop-credit-prototype.html \
+   "$HOME/loop/projects/Other Projects/Credit Page/index.html"                # then commit + push to deploy
 ```
 
 ⚠️ **Run `build-css.mjs` whenever a component is added or swapped**, not just on token edits. `app.css`
 only contains the Tailwind classes present when it was generated, so a new component's classes are
 silently missing from the single file — Storybook looks right while the built page renders flattened
-controls. If something looks subtly wrong only in `loop-credit-prototype.html`, this is why.
+controls. If something looks subtly wrong only in the built `index.html`, this is why.
 
 esbuild bundles the real React tree; `next/image`, `next/link`, `next/router` and `next-themes` are
 swapped for small shims in `standalone/shims/`; SVGs, the logo and the DM Sans webfont are all inlined as
@@ -854,7 +896,6 @@ It also means DS-1 arrives at Step 2 already connected, which the copy says out 
   `max(monthly spend, override ÷ 1.5)`, so you can't reach a higher limit on a lower documentation
   burden.
 - **Required data sources** — DS-2 above $50k governing spend, DS-4 above $150k, DS-3 for any B2C.
-- **Application strength** — the weighted meter, connected scoring higher than uploaded.
 - **Personal guarantee** — full / limited / none, from time in business, profitability, and leverage.
 - **Whether Step 6 exists at all** — the progress indicator is 6 or 7 steps depending on the above.
 - **The document list** — 15 triggers, capped at 6 with the overflow surfaced rather than hidden.
