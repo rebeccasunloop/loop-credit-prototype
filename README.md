@@ -5,7 +5,8 @@ term loans — each opening its own detail page, plus application tracking.
 
 Built 2026-08-10 from Mercury's Financing page as a reference, filtered through Loop's ICP. Restructured
 2026-08-13 to `credit-page-spec2.md` (product model, data integrity), then again 2026-08-17 to the
-accounts-list structure below, which on the same day gained a summary band and a full naming pass.
+accounts-list structure below, which on the same day gained a summary band and a full naming pass. The band
+was re-centred on **Total owed** with a per-facility breakdown on 2026-08-20.
 **Cato's priority is the application flow — it ships next — so the accounts view is deliberately functional
 rather than polished.**
 
@@ -28,7 +29,7 @@ served verbatim rather than run through Jekyll.
 | **`index.html`** | **The prototype.** One self-contained file, ~2.1 MB. Open it and click, or use the live link above. No server, no network, no build. Real React, real Loop components, real state. Named `index.html` so GitHub Pages serves it at the root URL; the build script still emits it as `dist/loop-credit-prototype.html`, so copy it over that name. |
 | `credit-page-spec2.md` | **The current spec.** Revision spec v2 — confirmed product model, the IA restructure, data-integrity fixes, and the surfaces built in this pass. Where it disagrees with anything below, it wins. |
 | `credit-page-spec.html` | The original build spec — segment-fit verdict, Mercury to Loop feature analysis, screen-by-screen, states, copy, design-system decisions. Superseded on IA and data by v2; still the reference for the segment reasoning. |
-| `Loop - Credit Application Questionnaire Flow (August 2026).pdf` | Cato Pastoll's design specification for the application. The questionnaire was built from it directly rather than re-specced. |
+| `Loop - Credit Application Questionnaire Flow (August 2026) - Google Docs.pdf` | Cato Pastoll's design specification for the application — **the authority on what is mandatory** (see *Everything is mandatory unless the spec says otherwise*). The questionnaire was built from it directly rather than re-specced. Re-read in full 2026-08-20 against the copy in `~/Downloads`; the two exports differ only in whitespace, so this copy is current. |
 
 ## Product model
 
@@ -114,20 +115,36 @@ wrong or would file a line of credit under "loans", which is not how customers t
 
 Every row opens its own detail page, and **transactions are scoped per account** — there is no global ledger.
 
-### The summary band (added 2026-08-17)
+### The summary band (added 2026-08-17, re-centred on Total owed 2026-08-20)
 
 Removing the Overview page left the landing view with no account-level figures. The band is a thin strip of
-**exactly three** figures above the tables — no card chrome, no borders, one hairline rule underneath, so it
-reads lighter than the tables it introduces. It is **not** a card grid. Three figures remains the cap; charts
-and any fourth metric belong on the facility detail pages.
+figures above the tables — no card chrome, no borders, one hairline rule underneath, so it reads lighter than
+the tables it introduces. It is **not** a card grid. Charts and any further metric belong on the facility
+detail pages.
 
-| Figure | Derivation |
-| --- | --- |
-| **Available credit** (primary, largest type) | `limit − (line balance + Σ outstanding term-loan principal)`, with `of $X limit` beneath it |
-| **Total owed** | `line balance + Σ outstanding term-loan principal` |
-| **Next payment due** | soonest obligation still ahead across *all* facilities — statement minimum or a loan's scheduled payment — with its date |
+**The band leads with what you owe, not what you can still draw** (2026-08-20, Rebecca's direction). *Available
+credit* is gone from the band entirely and **Total owed is now the hero figure** — `text-display-md`, the
+largest type on the page, carrying the currency flag and the `of $X limit` subline that used to sit under
+available credit. Immediately to its right, separated by a hairline, is the **breakdown of that one number
+into the two facilities**, so the hero always visibly resolves into the two tables underneath it.
 
-Below the three figures sits a **utilization bar** (`ValueProgressBar`, the same component as the line-of-credit
+| Figure | Type | Derivation |
+| --- | --- | --- |
+| **Total owed** (hero) | `text-display-md` + flag | `line balance + Σ outstanding term-loan principal`, with `of $X limit` beneath it |
+| **Term loans** | `text-xl` | `Σ outstanding term-loan principal` — ties to the Term loans table's *Outstanding* column |
+| **Lines of credit** | `text-xl` | the revolving `outstandingBalance` — ties to the Lines of credit table's *Drawn* column |
+| **Next payment due** | `text-xl` | soonest obligation still ahead across *all* facilities — statement minimum or a loan's scheduled payment — with its date |
+
+The two breakdown figures are **peers of Next payment due in type but grouped by dividers**: `sm:border-l` on
+*Term loans* and again on *Next payment due*, so the flat `<dl>` reads as hero | breakdown pair | next
+payment without nesting `<div>`s two deep inside the definition list. **Term loans + Lines of credit = Total
+owed** by construction — both halves come from the same helpers the hero does, so the sum cannot drift.
+
+Available credit has not disappeared from the product: it is still the *Available* column on the Lines of
+credit table, still the remainder half of the utilization bar's hover, and still the formula everything is
+derived from. It simply is no longer a headline figure.
+
+Below the figures sits a **utilization bar** (`ValueProgressBar`, the same component as the line-of-credit
 card) — filled = total owed, remainder = available, each half naming its own breakdown on hover.
 ⚠️ This reverses the band's original "no utilization bars, charts or additional metrics here" rule, on
 Rebecca's direction 2026-08-18. Note it renders the **same computation** as the bar on the line-of-credit
@@ -213,10 +230,15 @@ rather than leaving a selected tab pointing somewhere else.
 the better home for it. The one thing worth keeping, the **declined adverse-action reviewer callout**, was
 moved to the top of the Applications page rather than lost.
 
-**Both pages carry the same two actions.** `credit-actions.tsx` is shared, rendered by the summary band and
-by the Applications page, and gated on active credit — a business with no limit is not offered a limit
-increase. This replaced the Applications table's own header button, so there is now one definition instead
-of two.
+**`credit-actions.tsx` is shared** by the Summary page and the Applications page, and gated on active credit
+— a business with no limit is not offered a limit increase. This replaced the Applications table's own header
+button, so there is one definition instead of two.
+
+**The two pages no longer carry the same actions** (2026-08-20). *Request a limit increase* was **removed from
+the Summary page**, which now shows only *Apply for a term loan*. `onRequestIncrease` is optional on
+`CreditActions`; omit it and the secondary button doesn't render. The Applications tab keeps it — that surface
+already lists limit-increase applications and explains the re-verification flow, so it is the honest home for
+the entry point, and the flow itself is unchanged and still reachable.
 
 **The actions sit on the tab row**, right-aligned and vertically centred against Summary · Applications, via
 the `actions` slot on `CreditLayout`. The page title row is just "Credit". They briefly lived inside the
@@ -241,7 +263,9 @@ where DS-1 (Business bank accounts) is already a required source at Step 2.
   So is the compliance-policy bullet that §8.2 disputed — it went with the panel.
 - `prefilledAnswers` now starts DS-1 **idle**, so the connect step is real rather than pre-satisfied.
 - Header actions are two buttons instead of the Apply ▾ dropdown: **Request a limit increase**
-  (secondary, `TrendUp02`) and **Apply for a term loan** (primary, `CoinsStacked01`).
+  (secondary, `TrendUp02`) and **Apply for a term loan** (primary, `CoinsStacked01`). *Superseded
+  2026-08-20 on the Summary page*, which now carries only *Apply for a term loan*; both buttons remain on
+  the Applications tab.
 
 ⚠️ **Why not "New term loan" / "Increase credit limit"** as suggested: both imply the action completes. Neither
 does — a limit increase is re-verified and can come back as *More info needed*, and a term loan is
@@ -584,18 +608,215 @@ stops on consent checkboxes with no explanation, and nothing at all on the finan
 (named individually), each guarantor's consent, monthly spend ≥ $5,000, and — a new required field — what a
 requested over-limit would be used for.
 
+## Open issue: checkboxes render as circles
+
+Every checkbox in the application — the three data consents, the soft-credit-check consent, the guarantor
+consents — draws as a **circle, not a square**, so a set of them reads as a radio group where only one can be
+picked. Noticed 2026-08-20 when the consents came out of their card and three round controls ended up in a
+row on the canvas.
+
+Not a prototype bug. `base/checkbox` sets `size-5 rounded-md`, and Loop's `theme.css` sets
+`--radius-DEFAULT: 1.25rem` with `--radius-md: calc(var(--radius-DEFAULT) - 2px)` — 18px of radius on a 20px
+box is a circle. Untitled UI's checkbox assumes a small `rounded-md`; Loop's radius scale is built for cards.
+It is a **design-system-level collision**, the same class of drift as *Loop token drift: Figma vs code*, and
+it is wrong everywhere checkboxes appear in the product, not just here.
+
+The local fix is one rule in `prototype-overrides.css` (`input[type='checkbox'] { border-radius: 6px }` or a
+`rounded-sm` override on the component), deliberately **not** applied — changing how a shared DS component
+looks across the whole prototype is Rebecca's call, not a side effect of a copy change.
+
+## Type scale (set 2026-08-20, referenced to the onboarding prototype)
+
+Rebecca's call: sizes, visibility and spacing across the application should be bigger and internally
+consistent, with **the onboarding prototype as the reference**. The reference read is
+`~/loop/projects/Project #4 - Onboarding/Prototype/Iterations/Onboarding_Redesign_V3.7.html`, which has no
+type tokens — the sizes are literal px on semantic classes:
+
+| Onboarding class | Size |
+| --- | --- |
+| `.page-h` | 38px / 500 / -0.9px |
+| `.scr-q` (a screen's question) | 23px / 600 / -0.3px / lh 1.28 |
+| `.wr-section-h`, `.who-sec-h` | 19–20px / 600 |
+| `.scr-sub` | 14px / lh 1.55 |
+| `.fixedbox`, `.cc-trigger` (input text) | 16px |
+| `.inv-help`, `.field-err` | 12.5px |
+
+Read against the credit application, **only one level was actually out of sync**. The `h1` was already
+`.page-h` exactly (`text-[38px] leading-[1.15] font-medium tracking-[-0.9px]`), and the design system's own
+field internals — `Label` 14px, `HintText` 14px, input text 16px — already match onboarding's 13.5/12.5/16.
+The **question** sat at `text-md` (16px/500), the same size as a field label and two steps below where
+onboarding puts it. So the ramp read 38 → 16 → 14 → 14 instead of a real hierarchy.
+
+| Role | Was | Now |
+| --- | --- | --- |
+| Page title | `text-[38px]/500/-0.9px` | unchanged — already onboarding's |
+| Step description | `text-md` (16) | `text-lg` (18), `leading-relaxed` |
+| **Question** (`QuestionBlock`) | `text-md font-medium` (16/500) | **`text-xl font-semibold tracking-[-0.3px]`** (20/600) |
+| Question helper | `text-sm` (14) | `text-md leading-relaxed` (16) |
+| "Autofilled from your Loop account" | `text-xs` (12) | `text-sm` (14) |
+| Card / section `h3` | `text-md font-semibold` (16) | `text-lg` (18) — owners, connect, consents |
+| Card body copy | `text-sm` (14) | `text-md leading-relaxed` (16) |
+| Ad-hoc field hints | `text-xs` (12) | `text-sm` (14) — the `HintText` default they should have been |
+| Question spacing | `gap-2.5` inside, `gap-9` between | `gap-3.5` inside, `gap-11` between, `mt-12` above |
+
+⚠️ **The question is 20px, not onboarding's 23px, deliberately.** Onboarding asks roughly one question per
+screen, where 23px is the page's subject. Pre-qualification stacks ten questions in one column; at 23px each
+the step reads as ten headlines competing with the h1. 20px keeps the same relationship to a 38px title
+without shouting ten times.
+
+**The chrome was left alone** — header, step rail, the `3/7` section counter, button labels. Those sit at
+14px and below, which is also where onboarding's chrome sits (`.flow-step` 14px); the ask was about the
+content the applicant reads and answers.
+
 ## Application-flow conventions (set 2026-08-17)
 
 - **Prefilled fields say "Autofilled from your Loop account"** in plain grey text. The sparkle icon is gone —
   the words carry it, and a decorative icon on every prefilled question was noise.
-- **Mandatory questions carry a red asterisk**, and "mandatory" means exactly *what gates Continue*: monthly
-  spend, the over-limit reason, the credit-check consent, the three data consents, total revenue, gross
-  margin, per-owner email and phone, the triggered documents, and each guarantor's consent. Asterisk and
+- **A start date is one MM/YYYY box, not a Month box and a Year box** (2026-08-20). `MonthYearBox` in
+  `fields.tsx` inserts the slash after two digits and respects a typed one, so both `032021` and `3/2021`
+  land on March 2021; the month box used to accept `13`, and now an out-of-range month or year turns the
+  ring red. The raw text is local state so a half-typed `0` survives, and `startedMonth`/`startedYear` are
+  only written once both sides parse — which is why `startDateIsComplete()` reads the answers and the field's
+  invalid state reads the local text. The read-only summary still says **March 2021**, not `03/2021`: the
+  MM/YYYY format is how you *enter* the date, not how it reads back.
+- **Connect your data leads with the requirement** (2026-08-20). The description was *"Connecting is faster
+  and more accurate than uploading, but uploading is always an option"* — true, but it opened on a
+  preference when the applicant's first question is how much is being asked of them. It now reads **"We
+  require at least 2 connections or documents. Connecting is faster and more accurate than uploading"**.
+  ⚠️ The "at least 2" is **copy only** — `requiredSources()` still derives which sources are required from
+  governing spend and revenue model, and the blockers still gate on those specific sources rather than on a
+  count of two. If the product rule really is a floor of two, the rule needs to say so.
+- **"N documents will be needed" is gone** (2026-08-20) — the strip that sat under the title on the connect
+  and questionnaire steps. It announced work two steps ahead of where it could be done, and the Documents
+  step lists the same thing when it is actionable. `documentCount` is off `ApplicationShell` entirely.
+- **Only *Required* is badged on the source cards** (2026-08-20). The *Optional* pill meant four of four
+  cards carried a badge, so the badge stopped distinguishing anything — absence of the label now reads as
+  optional. **"Usually takes under 2 minutes" is gone** too; it was a claim next to a button in a prototype
+  that cannot honour it.
+- **The consents sit on the canvas, not in a card**, and the heading is **"Please consent to the following to
+  proceed"** (2026-08-20). Four bordered source cards followed by a fifth bordered card made the consents
+  read as one more thing to connect; on the canvas they read as the condition on the step, and the heading
+  says so outright rather than labelling them *Your consents*.
+- **The pre-qualified screen has no card and no icon** (2026-08-20). *What happens next* was a bordered card
+  with a green gradient tick. It is the only thing on the screen below the h1, so the border drew a box
+  around the whole page, and the tick repeated what "You're pre-qualified" already said. The copy now sits
+  directly on the interface at the same question/body sizes as everything else.
+- **Changing a prefilled answer is an icon, not the word "Change"** (2026-08-20). Every `ConfirmCard` — the
+  read-only summary of an autofilled answer — now ends in an `Edit05` pencil-in-a-box in brand green,
+  vertically centred in the card, with a *Change* tooltip on hover and `aria-label="Change <field>"` for
+  screen readers. Three green "Change" links stacked down Step 1 competed with the step's own primary action;
+  the icon says the same thing without shouting. `ConfirmCard` takes an optional `label` (`operating address`,
+  `business start date`, `your details`) purely to name the button, since an icon has no visible text.
+  ⚠️ It is a bare `react-aria` `Button` styled with tertiary's colour tokens, **not** `<Button
+  color="tertiary" iconLeading={Edit05} />` — the house icon button draws its own `ring-1` circle and
+  `Edit05` already draws a box, so the DS version nests a box inside a circle. `p-2` keeps a 36px hit target
+  around the 20px glyph. The card also moved from `items-start` to `items-center`.
+  The two remaining **"Edit"** text buttons — the review step's `SummaryCard` header and Q18's
+  what-you're-applying-for block — are a different control and were left alone.
+- **Mandatory questions carry a red asterisk**, and "mandatory" means exactly *what gates Continue*: the
+  three data consents, total revenue, gross margin, per-owner email and phone, the triggered documents, and
+  each guarantor's consent — plus, from 2026-08-20, **every question on pre-qualification**. Asterisk and
   blocker list are driven by the same rule, so the page can't mark something required that doesn't stop you.
+- **Everything is mandatory unless the spec says otherwise** (2026-08-20, from
+  `Loop - Credit Application Questionnaire Flow (August 2026)`). Read end to end, the spec calls exactly
+  three things optional, and nothing else:
+
+  | Optional | Where it says so | How it's built |
+  | --- | --- | --- |
+  | **Q2 Website** | §5.1 — "Optional if Q3 answered" | The one question in the questionnaire with no asterisk. Blocks only when the business description is also empty |
+  | **Q19's free text** | §5.7 — "Multi-select + optional free text" | The multi-select is required; the write-in is not |
+  | **DS-3 Payment processors** | §4.1 — "Optional, but required if Q5 = B2C" | Already derived by `requiredSources()`, unchanged |
+
+  So every other question in the questionnaire now carries an asterisk, and `questionnaireBlockers()` in
+  `rules.ts` gates each sub-section on exactly the questions that show one — the same asterisk↔blocker
+  pairing `prequalBlockers()` gives Step 1. Seven unit tests cover it: all sections clearing, the Q2 trade,
+  the under-150-character follow-up, the B2C-subscription churn branch, the three unprofitable follow-ups,
+  and the total-debt exception.
+
+  ⚠️ **Two places the pairing can't hold, and both are the answer model rather than the rule.**
+  **Q14 (total debt)** is asterisked but never blocks: §5.4 says zero is a valid answer, and `totalDebt` is
+  a `number` initialised to 0, so an answered zero and an untouched field are the same value. The fix is
+  `totalDebt?: number`. **Q18** carries no asterisk at all, because §5.7 defines it as a read-only summary of
+  PQ-7 and PQ-7a with an edit affordance — there is nothing there to leave unanswered. The same 0-default
+  caveat applies more mildly to cash on hand, monthly operating expenses, average sale value and customer
+  concentration, all of which are gated on `> 0`; a legitimate zero would read as unanswered.
+- **Autofilled answers all use the grey confirm card**, not an open input (2026-08-20). PQ-1, PQ-5 and PQ-9
+  already did; **PQ-3 (industry), Q1 (registration number), Q2 (website) and Q3 (what does your business
+  do?)** were rendering as ordinary editable fields despite carrying the *Autofilled from your Loop account*
+  chip. They now open as the same read-only grey card with the `Edit05` pencil. This is what §3 asks for —
+  *"Most of this step is confirmation rather than entry. Design it as a review-and-correct experience, not a
+  form"* — and §5, *"Pre-filled values are editable, with a small indicator of the source"*.
+  A revealed follow-up stays **outside** its card: FQ-01 under PQ-3 and FQ-02 under Q3 are new questions
+  triggered by the answer, not part of confirming it, so they must not disappear when the card is collapsed.
+  ⚠️ **Q16 was left as a plain Yes/No** even though it is marked `prefilled`. Nothing actually prefills it —
+  `hasAffiliatedEntities` is `undefined` in `prefilledAnswers` — so the chip is claiming an autofill that
+  doesn't exist. Either drop the chip or prefill the value; a confirm card over an empty answer would just
+  be an empty card.
+- **Two helper lines removed** (2026-08-20). *"Month and year — for example 03/2021"* under PQ-5, because the
+  `MM/YYYY` placeholder in the box already says it, and *"An estimate is fine — we'll confirm from your
+  statements"* under PQ-6. ⚠️ **The PQ-6 line is specified.** §3 lists it in the Validation/helper column
+  verbatim, and its job was to lower the stakes on a question people hesitate over. Removed on Rebecca's
+  direction 2026-08-20; restore it if the hesitation shows up in testing.
+- **Every pre-qualification question is mandatory** (2026-08-20), and a **conditional question becomes
+  mandatory the moment its condition fires** — an inventory industry must say where it stores inventory, a
+  Yes to operating abroad must name the countries, a No to being authorized must name who is. A conditional
+  that never appears is never required. `prequalBlockers()` in `rules.ts` is the single definition: the flow
+  gates Continue on it and the step marks its asterisks from the same list, with six unit tests covering the
+  empty case, the cleared case, and each conditional branch. That is ten asterisks down one step — the
+  alternative is to say "every question is required" once at the top and drop the marks, which would break
+  the asterisk↔blocker parity above, so it was left as marks.
 - **Canadian English, -ize:** authorize / authorized / itemized / summarized / amortizing. `-our` spellings
   (colour, favour) stay. The answer field was renamed `isAuthorizedSigner` so code and copy agree.
-- **Save and finish later is a tertiary button beside Continue**, on every step — it was a grey text link
-  floating after the primary, which read as a caption rather than a choice.
+- **The footer nav is Back and Continue**, at opposite ends of the footer on every step (2026-08-20). Back
+  moved down here from above the `h1`, so the two directions sit opposite each other instead of at opposite
+  ends of the page; on the first step it leaves the application rather than being absent. **Save and finish
+  later is gone from every step**, including the pre-qualified interstitial — the header's *Save and exit*
+  already does it and progress saves on its own, so it was a third button competing in the one place the
+  applicant looks for the next action. (It had been promoted from a text link to a tertiary button on
+  2026-08-17; this supersedes that.)
+  **There is deliberately no page counter.** A centred `stepIndex + 1 / steps.length` (`1/6`, `3/6`) sat
+  between the two buttons for part of 2026-08-20 and was removed the same day: it held steady across all
+  seven questionnaire sections, so on the longest part of the flow it read as stuck rather than as progress.
+  The step rail already says where you are, and the questionnaire's step description says "Section 2 of 7".
+  Two earlier attempts at a counter are now both gone — the old footer's `x/7` section count and this one.
+- **The pale green wash is retired** (2026-08-20). `bg-brand-secondary` (`--loop-light-green`) is out of the
+  application in all three places it appeared: the **currency chips** on Q8 (selected state), the **source-card
+  icon tile** on Step 2 when a source is satisfied, and a **tinted note strip** on the Documents step.
+  A tint reads as *highlighted*; a solid fill reads as *chosen*, which is what these controls mean.
+
+  | Where | Was | Now |
+  | --- | --- | --- |
+  | Q8 currency chip, selected | `border-brand-primary bg-brand-secondary text-brand-secondary` | `border-brand-solid bg-brand-solid text-white` |
+  | Source card icon tile, satisfied | `bg-brand-secondary text-brand-400` | `bg-brand-solid text-white` |
+  | Documents note strip | `bg-brand-secondary/40` | `bg-secondary` (neutral) |
+
+  Only the currency chip was asked for; the other two were carried along because the colour is retired, and
+  the icon tile was already breaking the *icons use brand green, never pale green* rule below. Both are
+  single-class reverts if wanted back.
+- **The currency chips carry circular country flags** (2026-08-20) — `CurrencyFlag` clipped to a 20px circle
+  with a `ring-black/10` hairline, so the CAD flag's white still reads on a white chip. Four otherwise
+  identical pills distinguished only by a three-letter code is a lot of work for the eye; the flag is
+  recognised before the code is read. `reportingCurrency` is a plain `string`, so it is cast to `CurrencyEnum`
+  at the call site.
+- **"Help me work this out" opens a right-hand slideout calculator** — `gross-margin-helper.tsx`, using the
+  design system's own `SlideoutMenu` (§5.3 Q10 asks for "an inline definition of gross profit, plus a 'help me
+  work this out' affordance"; the definition is the tooltip, this is the second half).
+  **It asks one question, not two.** Total revenue was already answered at Q9, so it arrives prefilled with
+  *"From your earlier answer"* and the only thing left to enter is cost of goods sold. Gross profit and the
+  margin compute live, and the primary button reads the answer back — **Use 42%** — rather than a generic
+  *Apply*.
+  - The hard part of COGS is knowing what counts, so the helper text names **both sides** of the line
+    (count materials, freight in, processing, direct labour · leave out rent, salaries, software, marketing)
+    instead of defining the term again.
+  - Revenue stays editable but edits are **local** — they do not rewrite the Q9 answer. Silently editing a
+    question answered elsewhere is worse than making the applicant go back to it.
+  - ⚠️ A non-positive result disables *Use this figure*, because Q10 takes 1–100% and cannot express a
+    negative gross margin. Real businesses can have one. The panel says so and points at the follow-up; the
+    proper fix is in the Q10 field, not here.
+  - ⚠️ Two implementation traps. The panel stays mounted so it can animate out, so its inputs **re-seed on
+    open** rather than on mount — seeded on mount, the prefill was whatever revenue happened to be the first
+    time the screen rendered (usually zero). And it needs `className="z-50"`: the application header is
+    `sticky z-30`, and the slideout portals to the body, so without it the header paints over the panel title.
 - **Icons use brand green, never pale green.** Success featured-icons are now `color="brand" theme="gradient"`
   (solid brand disc, white glyph) and inline confirmation icons use `text-fg-brand-primary`.
 - **Conditional follow-ups ease in and out** — `Reveal` in `application/fields.tsx`. It keeps the content
@@ -705,8 +926,10 @@ the accounts view above is correct but unpolished. What exists today:
   badge, an error banner with amount past due / original due date / days overdue / late fee, a
   *Make a payment* CTA pre-filled with the past-due amount rather than the scheduled one, and the missed
   row marked **Missed** in the schedule.
-- **Read the band against the tables.** Total owed is the line's *Drawn* plus every term loan's *Outstanding*,
-  and Available credit is the limit minus that. They tie out to the cent in every state.
+- **Read the band against the tables.** The hero *Total owed* is the line's *Drawn* plus every term loan's
+  *Outstanding* — and the band now says so directly, since its two breakdown figures are exactly those
+  column totals. The Lines of credit table's *Available* column is the limit minus the hero. They tie out to
+  the cent in every state.
 - **Story `TwoLoansOverdue`.** The banner switches to a count and a combined amount, and **View overdue loans**
   filters the table to the two overdue rows without leaving the page.
 - **Open [Apply ▾] in `Default`, then in `NoCreditYet`.** The first offers Term loan and Credit limit increase;
@@ -899,7 +1122,7 @@ component, the same ones the Savings Account prototype was transcribed from:
 | `ChipToggle`, `MultiSelectChips` | `base/buttons` — `Button`, `tertiary` unselected → `primary` selected |
 | `SearchSelect` | `base/select` — `Select.ComboBox` + `Select.Item` |
 | `Field` labels/hints | `base/input` — `Label`, `HintText` |
-| `ConfirmCard` “Change” | `base/buttons` — `Button color="link-color"` |
+| `ConfirmCard` change control | `react-aria` `Button` + `Edit05` icon + `base/tooltip` — see below (was `Button color="link-color"` reading “Change”) |
 
 `LongText` is the one exception — the design system has no textarea, so it stays hand-rolled, now
 matching the app's own precedent (`pages/transactions/components/note-editor.tsx`) with the DS ring
